@@ -311,17 +311,24 @@
             }),
             add: (storeName, data) => new Promise((resolve, reject) => {
                 const tx = db.transaction(storeName, 'readwrite');
-                tx.oncomplete = () => resolve(req.result);
-                tx.onerror = () => reject(tx.error);
                 const store = tx.objectStore(storeName);
                 const req = store.add(data);
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
             }),
             put: (storeName, data) => new Promise((resolve, reject) => {
                 const tx = db.transaction(storeName, 'readwrite');
-                tx.oncomplete = () => resolve(req.result);
-                tx.onerror = () => reject(tx.error);
                 const store = tx.objectStore(storeName);
                 const req = store.put(data);
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
+            }),
+            delete: (storeName, id) => new Promise((resolve, reject) => {
+                const tx = db.transaction(storeName, 'readwrite');
+                const store = tx.objectStore(storeName);
+                const req = store.delete(id);
+                req.onsuccess = () => resolve();
+                req.onerror = () => reject(req.error);
             }),
             get: (storeName, id) => new Promise((resolve, reject) => {
                 const tx = db.transaction(storeName, 'readonly');
@@ -344,13 +351,6 @@
                 const req = index.getAll(query);
                 req.onsuccess = () => resolve(req.result);
                 req.onerror = () => reject(req.error);
-            }),
-            delete: (storeName, id) => new Promise((resolve, reject) => {
-                const tx = db.transaction(storeName, 'readwrite');
-                tx.oncomplete = () => resolve();
-                tx.onerror = () => reject(tx.error);
-                const store = tx.objectStore(storeName);
-                store.delete(id);
             }),
         };
 
@@ -394,7 +394,12 @@
                 return dbOps.put(PROMPTS_STORE, updated);
             },
             get: (id) => dbOps.get(PROMPTS_STORE, id),
-            getByFolder: (folderId) => dbOps.getAllByIndex(PROMPTS_STORE, 'folderId', folderId),
+            // FIX: Changed logic to be more robust by fetching all and filtering in JS.
+            // This avoids potential IndexedDB issues with querying for `null` keys.
+            async getByFolder(folderId) {
+                const allPrompts = await dbOps.getAllFromStore(PROMPTS_STORE);
+                return allPrompts.filter(p => p.folderId === folderId);
+            },
             delete: (id) => dbOps.delete(PROMPTS_STORE, id),
             async getCountRecursive(folderId, allFoldersMap, allPrompts) {
                 const promptsInFolder = allPrompts.filter(p => p.folderId === folderId).length;
@@ -583,7 +588,6 @@
                 const contentTextarea = promptModalBody.querySelector('#prompt-content-input');
                 const updatePlaceholders = () => {
                     const placeholdersContainer = promptModalBody.querySelector('#placeholder-fields');
-                    // FIX: Changed slice(2, -1) to slice(2, -2) to correctly remove both curly braces.
                     const found = new Set(contentTextarea.value.match(/{{(.*?)}}/g)?.map(m => m.slice(2, -2).trim()) || []);
                     placeholdersContainer.innerHTML = '';
                     if (found.size === 0) {
@@ -675,7 +679,6 @@
             }
 
             function attachEventListeners() {
-                // FIX: Consolidated "Add Folder" button logic
                 document.getElementById('add-folder-btn').addEventListener('click', () => {
                     document.getElementById('folder-form').reset();
                     const parentId = state.currentFolderId;
