@@ -119,6 +119,10 @@
         .prompt-card .card-text {
             flex-grow: 1;
         }
+        .prompt-card .prompt-path {
+            font-size: 0.75rem;
+            color: #6c757d;
+        }
 
         .placeholder-badge {
             background-color: #cfe2ff;
@@ -344,14 +348,6 @@
                 req.onsuccess = () => resolve(req.result);
                 req.onerror = () => reject(req.error);
             }),
-            getAllByIndex: (storeName, indexName, query) => new Promise((resolve, reject) => {
-                const tx = db.transaction(storeName, 'readonly');
-                const store = tx.objectStore(storeName);
-                const index = store.index(indexName);
-                const req = index.getAll(query);
-                req.onsuccess = () => resolve(req.result);
-                req.onerror = () => reject(req.error);
-            }),
         };
 
         const folderRepo = {
@@ -372,7 +368,7 @@
                 }
 
                 for (const id of foldersToDelete) {
-                    const prompts = await promptRepo.getByFolder(id);
+                    const prompts = await promptRepo.getByFolderRecursive(id, new Map(allFolders.map(f => [f.id, f])));
                     for (const p of prompts) {
                         await promptRepo.delete(p.id);
                     }
@@ -394,21 +390,39 @@
                 return dbOps.put(PROMPTS_STORE, updated);
             },
             get: (id) => dbOps.get(PROMPTS_STORE, id),
-            // FIX: Changed logic to be more robust by fetching all and filtering in JS.
-            // This avoids potential IndexedDB issues with querying for `null` keys.
-            async getByFolder(folderId) {
+            async getByFolderRecursive(folderId, allFoldersMap) {
                 const allPrompts = await dbOps.getAllFromStore(PROMPTS_STORE);
-                return allPrompts.filter(p => p.folderId === folderId);
+                if (folderId === null) {
+                    return allPrompts.filter(p => p.folderId === null);
+                }
+                
+                const descendantIds = new Set([folderId]);
+                const queue = [folderId];
+                while(queue.length > 0) {
+                    const currentId = queue.shift();
+                    for(const folder of allFoldersMap.values()) {
+                        if(folder.parentId === currentId) {
+                            descendantIds.add(folder.id);
+                            queue.push(folder.id);
+                        }
+                    }
+                }
+                return allPrompts.filter(p => descendantIds.has(p.folderId));
             },
             delete: (id) => dbOps.delete(PROMPTS_STORE, id),
             async getCountRecursive(folderId, allFoldersMap, allPrompts) {
-                const promptsInFolder = allPrompts.filter(p => p.folderId === folderId).length;
-                const children = [...allFoldersMap.values()].filter(f => f.parentId === folderId);
-                let count = promptsInFolder;
-                for (const child of children) {
-                    count += await this.getCountRecursive(child.id, allFoldersMap, allPrompts);
+                const descendantIds = new Set([folderId]);
+                const queue = [folderId];
+                 while(queue.length > 0) {
+                    const currentId = queue.shift();
+                    for(const folder of allFoldersMap.values()) {
+                        if(folder.parentId === currentId) {
+                            descendantIds.add(folder.id);
+                            queue.push(folder.id);
+                        }
+                    }
                 }
-                return count;
+                return allPrompts.filter(p => descendantIds.has(p.folderId)).length;
             }
         };
 
@@ -439,6 +453,22 @@
             };
             
             const escapeHTML = (str) => str?.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]) ?? '';
+
+            const getFolderPath = (folderId, allFoldersMap) => {
+                if (folderId === null) return 'Radice';
+                const path = [];
+                let currentId = folderId;
+                while(currentId) {
+                    const folder = allFoldersMap.get(currentId);
+                    if (folder) {
+                        path.unshift(folder.name);
+                        currentId = folder.parentId;
+                    } else {
+                        break;
+                    }
+                }
+                return `Radice / ${path.map(escapeHTML).join(' / ')}`;
+            };
 
             async function renderFolderTree() {
                 state.allFolders.clear();
@@ -493,7 +523,7 @@
 
             async function renderPromptList(folderId, searchTerm = '') {
                 try {
-                    let prompts = await promptRepo.getByFolder(folderId);
+                    let prompts = await promptRepo.getByFolderRecursive(folderId, state.allFolders);
                     if (searchTerm) {
                         const lower = searchTerm.toLowerCase();
                         const tags = (lower.match(/#\w+/g) || []).map(t => t.substring(1));
@@ -515,13 +545,15 @@
                     prompts.sort((a,b) => new Date(b.updatedAt) - new Date(a.updatedAt));
                     prompts.forEach(p => {
                         const col = document.createElement('div');
+                        const path = getFolderPath(p.folderId, state.allFolders);
                         col.className = 'col';
                         col.innerHTML = `
                             <div class="card h-100 shadow-sm prompt-card" data-prompt-id="${p.id}">
                                 <div class="card-body">
                                     <h5 class="card-title h6 fw-bold text-truncate">${escapeHTML(p.title)}</h5>
-                                    <p class="card-text small text-muted flex-grow-1">${escapeHTML(p.content).substring(0, 100)}...</p>
-                                    <div class="d-flex justify-content-between align-items-center">
+                                    <small class="prompt-path text-truncate d-block mb-2">${path}</small>
+                                    <p class="card-text small text-muted flex-grow-1">${escapeHTML(p.content).substring(0, 80)}...</p>
+                                    <div class="d-flex justify-content-between align-items-center mt-auto">
                                         <div class="tags-container text-truncate">
                                             ${p.tags.map(t => `<span class="badge bg-secondary me-1">${escapeHTML(t)}</span>`).join('')}
                                         </div>
@@ -541,6 +573,7 @@
 
             function renderPromptDisplayView(prompt) {
                 promptModalTitle.textContent = `Dettaglio: ${prompt.title}`;
+                const path = getFolderPath(prompt.folderId, state.allFolders);
                 const displayContent = escapeHTML(prompt.content).replace(/{{(.*?)}}/g, (match, name) => {
                      const tooltip = prompt.placeholders[name] ? escapeHTML(prompt.placeholders[name]) : 'Nessuna descrizione';
                      return `<span class="placeholder-badge" data-bs-toggle="tooltip" title="${tooltip}">${escapeHTML(name)}</span>`;
@@ -552,6 +585,7 @@
                         <button class="btn btn-secondary btn-sm" id="edit-prompt-btn"><i class="bi bi-pencil-fill me-1"></i> Modifica</button>
                         <button class="btn btn-danger btn-sm" id="delete-prompt-btn"><i class="bi bi-trash-fill me-1"></i> Elimina</button>
                     </div>
+                    <div class="text-muted mb-2"><i class="bi bi-folder2-open me-2"></i>${path}</div>
                     <div class="mb-3">
                         ${prompt.tags.map(tag => `<span class="badge bg-primary me-1">${escapeHTML(tag)}</span>`).join('')}
                     </div>
