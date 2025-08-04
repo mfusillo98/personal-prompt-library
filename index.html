@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Libreria di Prompt Personale</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Custom CSS Incorporato -->
+    <style>
+        :root {
+            --sidebar-width: 280px;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8f9fa;
+        }
+
+        .main-container {
+            display: flex;
+            height: 100vh;
+        }
+
+        #sidebar {
+            width: var(--sidebar-width);
+            min-width: var(--sidebar-width);
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            background-color: #fff;
+            border-right: 1px solid #dee2e6;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        #main-content {
+            margin-left: var(--sidebar-width);
+            width: calc(100% - var(--sidebar-width));
+            padding: 1.5rem;
+            height: 100vh;
+            overflow-y: auto;
+        }
+
+        #folder-tree-container {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 0.5rem;
+        }
+
+        #folder-tree ul {
+            list-style-type: none;
+            padding-left: 1rem;
+        }
+
+        #folder-tree .folder-item {
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.25rem;
+        }
+
+        #folder-tree .folder-item:hover {
+            background-color: #e9ecef;
+        }
+
+        #folder-tree .folder-item.active {
+            background-color: #0d6efd;
+            color: white;
+        }
+        #folder-tree .folder-item.active .badge {
+            background-color: white !important;
+            color: #0d6efd !important;
+        }
+
+        #folder-tree .folder-item-name {
+            flex-grow: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-right: 0.5rem;
+        }
+
+        #folder-tree .folder-actions {
+            display: none;
+        }
+
+        #folder-tree .folder-item:hover .folder-actions,
+        #folder-tree .folder-item.active .folder-actions {
+            display: flex;
+            gap: 0.25rem;
+        }
+
+        .prompt-card {
+            cursor: pointer;
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        .prompt-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        }
+        .prompt-card .card-body {
+            display: flex;
+            flex-direction: column;
+        }
+        .prompt-card .card-text {
+            flex-grow: 1;
+        }
+
+        .placeholder-badge {
+            background-color: #cfe2ff;
+            color: #084298;
+            padding: 0.25em 0.6em;
+            border-radius: 1em;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            border: 1px solid #9ec5fe;
+        }
+
+        .usage-mode-placeholder {
+            display: inline-block;
+            width: auto;
+            min-width: 150px;
+        }
+
+        #prompt-content-display, #prompt-content-usage {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            background-color: #f8f9fa;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            max-height: 40vh;
+            overflow-y: auto;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        
+        .modal-lg {
+            max-width: 800px;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 992px) {
+            :root {
+                --sidebar-width: 70px;
+            }
+            #sidebar .sidebar-title, #sidebar .folder-item-name, #sidebar .folder-actions, #sidebar .badge {
+                display: none;
+            }
+            #sidebar .sidebar-header .btn {
+                width: 100%;
+            }
+            #sidebar .folder-item {
+                justify-content: center;
+            }
+            #main-content {
+                margin-left: var(--sidebar-width);
+                width: calc(100% - var(--sidebar-width));
+            }
+        }
+        @media (max-width: 768px) {
+             :root {
+                --sidebar-width: 0px;
+            }
+            .main-container {
+                flex-direction: column;
+            }
+            #sidebar {
+                /* In a real app, this would be a togglable off-canvas menu */
+                display: none; 
+            }
+            #main-content {
+                margin-left: 0;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="main-container">
+        <!-- SIDEBAR: STRUTTURA CARTELLE -->
+        <aside id="sidebar">
+            <div class="sidebar-header p-3 border-bottom d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fs-6 fw-bold sidebar-title"><i class="bi bi-folder-tree me-2"></i>Libreria</h5>
+                <button class="btn btn-primary btn-sm" id="add-folder-btn" title="Aggiungi nuova cartella radice">
+                    <i class="bi bi-folder-plus"></i>
+                </button>
+            </div>
+            <div id="folder-tree-container">
+                <div id="folder-tree"></div>
+            </div>
+        </aside>
+
+        <!-- CONTENT: RICERCA E GRIGLIA PROMPT -->
+        <main id="main-content">
+            <div class="top-bar mb-4">
+                <div class="input-group input-group-lg shadow-sm">
+                    <span class="input-group-text bg-white border-end-0"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control border-start-0" id="search-input" placeholder="Cerca per titolo, contenuto o #tag nella cartella corrente...">
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="mb-0">Prompt in "<span id="current-folder-name">Radice</span>"</h4>
+                <button class="btn btn-success" id="add-prompt-btn">
+                    <i class="bi bi-plus-lg me-1"></i> Nuovo Prompt
+                </button>
+            </div>
+
+            <div id="prompt-list" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-4">
+                <!-- Le card dei prompt verranno generate qui da JS -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal per Aggiungere/Modificare Cartella -->
+    <div class="modal fade" id="folder-modal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="folder-modal-title">Nuova Cartella</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="folder-form">
+                        <input type="hidden" id="parent-folder-id-input">
+                        <div class="mb-3">
+                            <label for="folder-name-input" class="form-label">Nome Cartella</label>
+                            <input type="text" class="form-control" id="folder-name-input" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Salva</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal per Dettaglio/Editor Prompt -->
+    <div class="modal fade" id="prompt-detail-modal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="prompt-modal-title">Dettaglio Prompt</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="prompt-modal-body">
+                    <!-- Contenuto dinamico del modal -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast per le notifiche -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div id="app-toast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header">
+                <strong class="me-auto">Notifica</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body"></div>
+        </div>
+    </div>
+
+
+    <!-- Bootstrap 5 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Custom JS Incorporato -->
+    <script>
+        // --- DATABASE LOGIC (IndexedDB) ---
+        const DB_NAME = 'PromptLibraryDB';
+        const DB_VERSION = 1;
+        const FOLDERS_STORE = 'folders';
+        const PROMPTS_STORE = 'prompts';
+        let db;
+
+        const dbOps = {
+            initDB: () => new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                request.onerror = e => reject('Database error: ' + e.target.error);
+                request.onupgradeneeded = e => {
+                    const dbInstance = e.target.result;
+                    if (!dbInstance.objectStoreNames.contains(FOLDERS_STORE)) {
+                        const fs = dbInstance.createObjectStore(FOLDERS_STORE, { keyPath: 'id', autoIncrement: true });
+                        fs.createIndex('parentId', 'parentId', { unique: false });
+                    }
+                    if (!dbInstance.objectStoreNames.contains(PROMPTS_STORE)) {
+                        const ps = dbInstance.createObjectStore(PROMPTS_STORE, { keyPath: 'id', autoIncrement: true });
+                        ps.createIndex('folderId', 'folderId', { unique: false });
+                        ps.createIndex('tags', 'tags', { unique: false, multiEntry: true });
+                    }
+                };
+                request.onsuccess = e => {
+                    db = e.target.result;
+                    resolve(db);
+                };
+            }),
+            perform: (storeName, mode, operation) => new Promise((resolve, reject) => {
+                if (!db) return reject('DB not initialized');
+                const ta = db.transaction(storeName, mode);
+                ta.oncomplete = () => resolve();
+                ta.onerror = e => reject(e.target.error);
+                operation(ta.objectStore(storeName), resolve, reject);
+            }),
+            add: (storeName, data) => new Promise((resolve, reject) => {
+                dbOps.perform(storeName, 'readwrite', (store) => {
+                    const req = store.add(data);
+                    req.onsuccess = () => resolve(req.result);
+                    req.onerror = () => reject(req.error);
+                }).catch(reject);
+            }),
+            put: (storeName, data) => new Promise((resolve, reject) => {
+                dbOps.perform(storeName, 'readwrite', (store) => {
+                    const req = store.put(data);
+                    req.onsuccess = () => resolve(req.result);
+                    req.onerror = () => reject(req.error);
+                }).catch(reject);
+            }),
+            get: (storeName, id) => new Promise((resolve, reject) => {
+                dbOps.perform(storeName, 'readonly', (store) => {
+                    const req = store.get(id);
+                    req.onsuccess = () => resolve(req.result);
+                    req.onerror = () => reject(req.error);
+                }).catch(reject);
+            }),
+            getAll: (storeName, indexName, query) => new Promise((resolve, reject) => {
+                dbOps.perform(storeName, 'readonly', (store) => {
+                    const index = store.index(indexName);
+                    const req = index.getAll(query);
+                    req.onsuccess = () => resolve(req.result);
+                    req.onerror = () => reject(req.error);
+                }).catch(reject);
+            }),
+            delete: (storeName, id) => new Promise((resolve, reject) => {
+                dbOps.perform(storeName, 'readwrite', (store) => {
+                    const req = store.delete(id);
+                    req.onsuccess = () => resolve();
+                    req.onerror = () => reject(req.error);
+                }).catch(reject);
+            }),
+        };
+
+        const folderRepo = {
+            add: (name, parentId = null) => dbOps.add(FOLDERS_STORE, { name, parentId }),
+            get: (id) => dbOps.get(FOLDERS_STORE, id),
+            getSubfolders: (parentId = null) => dbOps.getAll(FOLDERS_STORE, 'parentId', parentId),
+            async delete(folderId) {
+                const subfolders = await this.getSubfolders(folderId);
+                for (const sub of subfolders) {
+                    await this.delete(sub.id);
+                }
+                const prompts = await promptRepo.getByFolder(folderId);
+                for (const p of prompts) {
+                    await promptRepo.delete(p.id);
+                }
+                return dbOps.delete(FOLDERS_STORE, folderId);
+            },
+        };
+
+        const promptRepo = {
+            add: (prompt) => {
+                prompt.createdAt = new Date();
+                prompt.updatedAt = new Date();
+                return dbOps.add(PROMPTS_STORE, prompt);
+            },
+            update: async (id, data) => {
+                const existing = await dbOps.get(PROMPTS_STORE, id);
+                if (!existing) throw new Error('Prompt not found');
+                const updated = { ...existing, ...data, updatedAt: new Date() };
+                return dbOps.put(PROMPTS_STORE, updated);
+            },
+            get: (id) => dbOps.get(PROMPTS_STORE, id),
+            getByFolder: (folderId) => dbOps.getAll(PROMPTS_STORE, 'folderId', folderId),
+            delete: (id) => dbOps.delete(PROMPTS_STORE, id),
+            async getCountRecursive(folderId, allFoldersMap) {
+                let count = (await this.getByFolder(folderId)).length;
+                const children = [...allFoldersMap.values()].filter(f => f.parentId === folderId);
+                for (const child of children) {
+                    count += await this.getCountRecursive(child.id, allFoldersMap);
+                }
+                return count;
+            }
+        };
+
+        // --- APPLICATION LOGIC ---
+        document.addEventListener('DOMContentLoaded', () => {
+            let state = {
+                currentFolderId: null,
+                allFolders: new Map(),
+            };
+
+            // DOM Elements
+            const folderTreeEl = document.getElementById('folder-tree');
+            const promptListEl = document.getElementById('prompt-list');
+            const searchInput = document.getElementById('search-input');
+            const currentFolderNameEl = document.getElementById('current-folder-name');
+            
+            // Modals & Toasts
+            const folderModal = new bootstrap.Modal('#folder-modal');
+            const promptDetailModal = new bootstrap.Modal('#prompt-detail-modal');
+            const promptModalBody = document.getElementById('prompt-modal-body');
+            const promptModalTitle = document.getElementById('prompt-modal-title');
+            const appToast = new bootstrap.Toast('#app-toast');
+
+            const showToast = (message, type = 'success') => {
+                const toastBody = document.querySelector('#app-toast .toast-body');
+                const toastHeader = document.querySelector('#app-toast .toast-header');
+                toastBody.textContent = message;
+                toastHeader.className = `toast-header text-white bg-${type}`;
+                appToast.show();
+            };
+            
+            const escapeHTML = (str) => str?.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]) ?? '';
+
+            async function renderFolderTree() {
+                state.allFolders.clear();
+                const allDbFolders = await folderRepo.getSubfolders(null);
+                let foldersToProcess = [...allDbFolders];
+                while (foldersToProcess.length > 0) {
+                    const folder = foldersToProcess.shift();
+                    state.allFolders.set(folder.id, folder);
+                    const children = await folderRepo.getSubfolders(folder.id);
+                    foldersToProcess.push(...children);
+                }
+                
+                const rootFolders = [...state.allFolders.values()].filter(f => f.parentId === null);
+                folderTreeEl.innerHTML = '';
+                const treeUL = await createFolderTreeUL(rootFolders);
+                folderTreeEl.appendChild(treeUL);
+            }
+
+            async function createFolderTreeUL(folders) {
+                const ul = document.createElement('ul');
+                for (const folder of folders) {
+                    const count = await promptRepo.getCountRecursive(folder.id, state.allFolders);
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <div class="folder-item ${state.currentFolderId === folder.id ? 'active' : ''}" data-folder-id="${folder.id}">
+                            <span class="folder-item-name"><i class="bi bi-folder me-2"></i>${escapeHTML(folder.name)}</span>
+                            <span class="badge bg-secondary rounded-pill me-2">${count}</span>
+                            <span class="folder-actions">
+                                <button class="btn btn-outline-primary btn-sm add-subfolder-btn p-1" title="Aggiungi sottocartella"><i class="bi bi-folder-plus"></i></button>
+                                <button class="btn btn-outline-danger btn-sm delete-folder-btn p-1" title="Elimina cartella"><i class="bi bi-trash"></i></button>
+                            </span>
+                        </div>
+                    `;
+                    li.querySelector('.folder-item').addEventListener('click', e => !e.target.closest('button') && handleFolderSelect(folder.id));
+                    
+                    const children = [...state.allFolders.values()].filter(f => f.parentId === folder.id);
+                    if (children.length > 0) {
+                        li.appendChild(await createFolderTreeUL(children));
+                    }
+                    ul.appendChild(li);
+                }
+                return ul;
+            }
+
+            async function renderPromptList(folderId, searchTerm = '') {
+                try {
+                    let prompts = await promptRepo.getByFolder(folderId);
+                    if (searchTerm) {
+                        const lower = searchTerm.toLowerCase();
+                        const tags = (lower.match(/#\w+/g) || []).map(t => t.substring(1));
+                        const text = lower.replace(/#\w+/g, '').trim();
+                        prompts = prompts.filter(p => {
+                            const titleMatch = text ? p.title.toLowerCase().includes(text) : true;
+                            const contentMatch = text ? p.content.toLowerCase().includes(text) : true;
+                            const tagMatch = tags.length > 0 ? tags.every(t => p.tags.some(pt => pt.toLowerCase() === t)) : true;
+                            return (titleMatch || contentMatch) && tagMatch;
+                        });
+                    }
+
+                    promptListEl.innerHTML = '';
+                    if (prompts.length === 0) {
+                        promptListEl.innerHTML = `<div class="col-12"><p class="text-center text-muted mt-3">Nessun prompt in questa cartella.</p></div>`;
+                        return;
+                    }
+
+                    prompts.sort((a,b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+                    prompts.forEach(p => {
+                        const col = document.createElement('div');
+                        col.className = 'col';
+                        col.innerHTML = `
+                            <div class="card h-100 shadow-sm prompt-card" data-prompt-id="${p.id}">
+                                <div class="card-body">
+                                    <h5 class="card-title h6 fw-bold text-truncate">${escapeHTML(p.title)}</h5>
+                                    <p class="card-text small text-muted flex-grow-1">${escapeHTML(p.content).substring(0, 100)}...</p>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div class="tags-container text-truncate">
+                                            ${p.tags.map(t => `<span class="badge bg-secondary me-1">${escapeHTML(t)}</span>`).join('')}
+                                        </div>
+                                        <small class="text-muted">${new Date(p.updatedAt).toLocaleDateString()}</small>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        col.querySelector('.prompt-card').addEventListener('click', () => handlePromptSelect(p.id));
+                        promptListEl.appendChild(col);
+                    });
+                } catch (error) {
+                    console.error("Error loading prompts:", error);
+                    showToast("Errore nel caricamento dei prompt.", 'danger');
+                }
+            }
+
+            function renderPromptDisplayView(prompt) {
+                promptModalTitle.textContent = `Dettaglio: ${prompt.title}`;
+                const displayContent = escapeHTML(prompt.content).replace(/{{(.*?)}}/g, (match, name) => {
+                     const tooltip = prompt.placeholders[name] ? escapeHTML(prompt.placeholders[name]) : 'Nessuna descrizione';
+                     return `<span class="placeholder-badge" data-bs-toggle="tooltip" title="${tooltip}">${escapeHTML(name)}</span>`;
+                });
+
+                promptModalBody.innerHTML = `
+                    <div class="d-flex justify-content-end gap-2 mb-3">
+                        <button class="btn btn-primary btn-sm" id="use-prompt-btn"><i class="bi bi-play-fill me-1"></i> Utilizza</button>
+                        <button class="btn btn-secondary btn-sm" id="edit-prompt-btn"><i class="bi bi-pencil-fill me-1"></i> Modifica</button>
+                        <button class="btn btn-danger btn-sm" id="delete-prompt-btn"><i class="bi bi-trash-fill me-1"></i> Elimina</button>
+                    </div>
+                    <div class="mb-3">
+                        ${prompt.tags.map(tag => `<span class="badge bg-primary me-1">${escapeHTML(tag)}</span>`).join('')}
+                    </div>
+                    <div id="prompt-content-display">${displayContent}</div>
+                    <div class="text-muted small mt-2">Ultima modifica: ${new Date(prompt.updatedAt).toLocaleString()}</div>
+                `;
+                
+                [...promptModalBody.querySelectorAll('[data-bs-toggle="tooltip"]')].forEach(el => new bootstrap.Tooltip(el));
+                promptModalBody.querySelector('#use-prompt-btn').addEventListener('click', () => renderUsageView(prompt));
+                promptModalBody.querySelector('#edit-prompt-btn').addEventListener('click', () => renderPromptForm(prompt));
+                promptModalBody.querySelector('#delete-prompt-btn').addEventListener('click', async () => {
+                    if (confirm('Sei sicuro di voler eliminare questo prompt?')) {
+                        await promptRepo.delete(prompt.id);
+                        showToast('Prompt eliminato.', 'success');
+                        promptDetailModal.hide();
+                        await renderPromptList(state.currentFolderId);
+                        await renderFolderTree();
+                    }
+                });
+            }
+            
+            function renderPromptForm(prompt = null) {
+                const isEditing = !!prompt;
+                promptModalTitle.textContent = isEditing ? 'Modifica Prompt' : 'Nuovo Prompt';
+                promptModalBody.innerHTML = `
+                    <form id="prompt-form">
+                        <div class="mb-3"><label class="form-label">Titolo</label><input type="text" id="prompt-title-input" class="form-control" required value="${isEditing ? escapeHTML(prompt.title) : ''}"></div>
+                        <div class="mb-3"><label class="form-label">Contenuto</label><textarea id="prompt-content-input" class="form-control" rows="8" required>${isEditing ? escapeHTML(prompt.content) : ''}</textarea></div>
+                        <div class="mb-3"><label class="form-label">Tag (separati da virgola)</label><input type="text" id="prompt-tags-input" class="form-control" value="${isEditing ? escapeHTML(prompt.tags.join(', ')) : ''}"></div>
+                        <div class="mb-3"><h5 class="fs-6">Descrizione Placeholders</h5><div id="placeholder-fields" class="p-2 bg-light rounded"></div></div>
+                        <div class="d-flex justify-content-end gap-2"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button><button type="submit" class="btn btn-success">Salva</button></div>
+                    </form>
+                `;
+                const contentTextarea = promptModalBody.querySelector('#prompt-content-input');
+                const updatePlaceholders = () => {
+                    const placeholdersContainer = promptModalBody.querySelector('#placeholder-fields');
+                    const found = new Set(contentTextarea.value.match(/{{(.*?)}}/g)?.map(m => m.slice(2, -1).trim()) || []);
+                    placeholdersContainer.innerHTML = '';
+                    if (found.size === 0) {
+                        placeholdersContainer.innerHTML = '<p class="text-muted small m-0">Nessun placeholder trovato. Usa {{nome}} per crearne uno.</p>';
+                    } else {
+                        found.forEach(name => {
+                            const desc = (isEditing && prompt.placeholders?.[name]) || '';
+                            placeholdersContainer.innerHTML += `<div class="mb-2"><label class="form-label fw-bold small">${escapeHTML(name)}</label><input type="text" data-placeholder-name="${escapeHTML(name)}" class="form-control form-control-sm" value="${escapeHTML(desc)}"></div>`;
+                        });
+                    }
+                };
+                contentTextarea.addEventListener('input', updatePlaceholders);
+                updatePlaceholders();
+
+                promptModalBody.querySelector('#prompt-form').addEventListener('submit', async e => {
+                    e.preventDefault();
+                    const data = {
+                        title: document.getElementById('prompt-title-input').value,
+                        content: document.getElementById('prompt-content-input').value,
+                        tags: document.getElementById('prompt-tags-input').value.split(',').map(t => t.trim()).filter(Boolean),
+                        placeholders: Object.fromEntries([...document.querySelectorAll('#placeholder-fields input')].map(i => [i.dataset.placeholderName, i.value])),
+                        folderId: state.currentFolderId
+                    };
+                    try {
+                        if (isEditing) {
+                            await promptRepo.update(prompt.id, data);
+                            showToast('Prompt aggiornato!', 'success');
+                        } else {
+                            await promptRepo.add(data);
+                            showToast('Prompt creato!', 'success');
+                        }
+                        promptDetailModal.hide();
+                        await renderPromptList(state.currentFolderId);
+                        await renderFolderTree();
+                    } catch (err) {
+                        showToast('Errore nel salvataggio.', 'danger');
+                        console.error(err);
+                    }
+                });
+            }
+
+            function renderUsageView(prompt) {
+                 promptModalTitle.textContent = `Utilizza: ${prompt.title}`;
+                 const usageContent = escapeHTML(prompt.content).replace(/{{(.*?)}}/g, (match, name) => 
+                    `<textarea class="usage-mode-placeholder form-control form-control-sm d-inline-block" rows="1" placeholder="${escapeHTML(name)}"></textarea>`
+                 );
+                 promptModalBody.innerHTML = `
+                    <div id="prompt-content-usage">${usageContent}</div>
+                    <div class="d-flex justify-content-end gap-2 mt-3">
+                        <button class="btn btn-secondary" id="back-to-view-btn"><i class="bi bi-arrow-left me-1"></i> Indietro</button>
+                        <button class="btn btn-success" id="copy-prompt-btn"><i class="bi bi-clipboard-check-fill me-1"></i> Copia</button>
+                    </div>
+                 `;
+                 promptModalBody.querySelectorAll('.usage-mode-placeholder').forEach(ta => {
+                    ta.addEventListener('input', () => { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; });
+                 });
+                 promptModalBody.querySelector('#back-to-view-btn').addEventListener('click', () => renderPromptDisplayView(prompt));
+                 promptModalBody.querySelector('#copy-prompt-btn').addEventListener('click', () => {
+                    let i = 0;
+                    const final = prompt.content.replace(/{{(.*?)}}/g, () => document.querySelectorAll('.usage-mode-placeholder')[i++].value);
+                    navigator.clipboard.writeText(final).then(() => showToast('Copiato!', 'success')).catch(() => showToast('Copia fallita', 'danger'));
+                 });
+            }
+
+            async function handleFolderSelect(folderId) {
+                state.currentFolderId = folderId;
+                document.querySelectorAll('#folder-tree .folder-item').forEach(el => el.classList.remove('active'));
+                document.querySelector(`#folder-tree .folder-item[data-folder-id="${folderId}"]`)?.classList.add('active');
+                
+                const folder = state.allFolders.get(folderId);
+                currentFolderNameEl.textContent = folder ? folder.name : 'Radice';
+                await renderPromptList(folderId, searchInput.value);
+            }
+            
+            async function handlePromptSelect(promptId) {
+                const prompt = await promptRepo.get(promptId);
+                if (prompt) {
+                    renderPromptDisplayView(prompt);
+                    promptDetailModal.show();
+                } else {
+                    showToast('Prompt non trovato.', 'danger');
+                }
+            }
+
+            function attachEventListeners() {
+                document.getElementById('add-folder-btn').addEventListener('click', () => {
+                    document.getElementById('folder-form').reset();
+                    document.getElementById('folder-modal-title').textContent = 'Nuova Cartella Radice';
+                    document.getElementById('parent-folder-id-input').value = 'null';
+                    folderModal.show();
+                });
+
+                document.getElementById('folder-form').addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const name = document.getElementById('folder-name-input').value;
+                    const parentIdStr = document.getElementById('parent-folder-id-input').value;
+                    const parentId = parentIdStr === 'null' ? null : parseInt(parentIdStr, 10);
+                    if (name) {
+                        await folderRepo.add(name, parentId);
+                        folderModal.hide();
+                        showToast('Cartella creata.', 'success');
+                        await renderFolderTree();
+                    }
+                });
+                
+                folderTreeEl.addEventListener('click', async (e) => {
+                    const addBtn = e.target.closest('.add-subfolder-btn');
+                    const delBtn = e.target.closest('.delete-folder-btn');
+                    if (addBtn) {
+                        const parentId = parseInt(addBtn.closest('.folder-item').dataset.folderId, 10);
+                        document.getElementById('folder-form').reset();
+                        document.getElementById('folder-modal-title').textContent = 'Nuova Sottocartella';
+                        document.getElementById('parent-folder-id-input').value = parentId;
+                        folderModal.show();
+                    }
+                    if (delBtn) {
+                        const folderId = parseInt(delBtn.closest('.folder-item').dataset.folderId, 10);
+                        if (confirm('Sei sicuro di voler eliminare questa cartella e tutto il suo contenuto? L\'azione è irreversibile.')) {
+                            await folderRepo.delete(folderId);
+                            showToast('Cartella eliminata.', 'success');
+                            if (state.currentFolderId === folderId) state.currentFolderId = null;
+                            await renderFolderTree();
+                            await handleFolderSelect(state.currentFolderId);
+                        }
+                    }
+                });
+
+                document.getElementById('add-prompt-btn').addEventListener('click', () => {
+                    renderPromptForm(null);
+                    promptDetailModal.show();
+                });
+
+                searchInput.addEventListener('input', () => renderPromptList(state.currentFolderId, searchInput.value));
+            }
+
+            async function initializeApp() {
+                try {
+                    await dbOps.initDB();
+                    await renderFolderTree();
+                    await handleFolderSelect(null);
+                    attachEventListeners();
+                } catch (error) {
+                    console.error("Initialization failed:", error);
+                    showToast("Errore di inizializzazione.", 'danger');
+                }
+            }
+            initializeApp();
+        });
+    </script>
+
+</body>
+</html>
