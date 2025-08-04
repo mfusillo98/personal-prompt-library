@@ -196,7 +196,7 @@
         <aside id="sidebar">
             <div class="sidebar-header p-3 border-bottom d-flex justify-content-between align-items-center">
                 <h5 class="mb-0 fs-6 fw-bold sidebar-title"><i class="bi bi-folder-tree me-2"></i>Libreria</h5>
-                <button class="btn btn-primary btn-sm" id="add-folder-btn" title="Aggiungi nuova cartella radice">
+                <button class="btn btn-primary btn-sm" id="add-folder-btn" title="Aggiungi nuova cartella">
                     <i class="bi bi-folder-plus"></i>
                 </button>
             </div>
@@ -309,65 +309,75 @@
                     resolve(db);
                 };
             }),
-            perform: (storeName, mode, operation) => new Promise((resolve, reject) => {
-                if (!db) return reject('DB not initialized');
-                const ta = db.transaction(storeName, mode);
-                ta.oncomplete = () => resolve();
-                ta.onerror = e => reject(e.target.error);
-                operation(ta.objectStore(storeName), resolve, reject);
-            }),
             add: (storeName, data) => new Promise((resolve, reject) => {
-                dbOps.perform(storeName, 'readwrite', (store) => {
-                    const req = store.add(data);
-                    req.onsuccess = () => resolve(req.result);
-                    req.onerror = () => reject(req.error);
-                }).catch(reject);
+                const tx = db.transaction(storeName, 'readwrite');
+                tx.oncomplete = () => resolve(req.result);
+                tx.onerror = () => reject(tx.error);
+                const store = tx.objectStore(storeName);
+                const req = store.add(data);
             }),
             put: (storeName, data) => new Promise((resolve, reject) => {
-                dbOps.perform(storeName, 'readwrite', (store) => {
-                    const req = store.put(data);
-                    req.onsuccess = () => resolve(req.result);
-                    req.onerror = () => reject(req.error);
-                }).catch(reject);
+                const tx = db.transaction(storeName, 'readwrite');
+                tx.oncomplete = () => resolve(req.result);
+                tx.onerror = () => reject(tx.error);
+                const store = tx.objectStore(storeName);
+                const req = store.put(data);
             }),
             get: (storeName, id) => new Promise((resolve, reject) => {
-                dbOps.perform(storeName, 'readonly', (store) => {
-                    const req = store.get(id);
-                    req.onsuccess = () => resolve(req.result);
-                    req.onerror = () => reject(req.error);
-                }).catch(reject);
+                const tx = db.transaction(storeName, 'readonly');
+                const store = tx.objectStore(storeName);
+                const req = store.get(id);
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
             }),
-            getAll: (storeName, indexName, query) => new Promise((resolve, reject) => {
-                dbOps.perform(storeName, 'readonly', (store) => {
-                    const index = store.index(indexName);
-                    const req = index.getAll(query);
-                    req.onsuccess = () => resolve(req.result);
-                    req.onerror = () => reject(req.error);
-                }).catch(reject);
+            getAllFromStore: (storeName) => new Promise((resolve, reject) => {
+                const tx = db.transaction(storeName, 'readonly');
+                const store = tx.objectStore(storeName);
+                const req = store.getAll();
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
+            }),
+            getAllByIndex: (storeName, indexName, query) => new Promise((resolve, reject) => {
+                const tx = db.transaction(storeName, 'readonly');
+                const store = tx.objectStore(storeName);
+                const index = store.index(indexName);
+                const req = index.getAll(query);
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
             }),
             delete: (storeName, id) => new Promise((resolve, reject) => {
-                dbOps.perform(storeName, 'readwrite', (store) => {
-                    const req = store.delete(id);
-                    req.onsuccess = () => resolve();
-                    req.onerror = () => reject(req.error);
-                }).catch(reject);
+                const tx = db.transaction(storeName, 'readwrite');
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+                const store = tx.objectStore(storeName);
+                store.delete(id);
             }),
         };
 
         const folderRepo = {
             add: (name, parentId = null) => dbOps.add(FOLDERS_STORE, { name, parentId }),
-            get: (id) => dbOps.get(FOLDERS_STORE, id),
-            getSubfolders: (parentId = null) => dbOps.getAll(FOLDERS_STORE, 'parentId', parentId),
+            getAll: () => dbOps.getAllFromStore(FOLDERS_STORE),
             async delete(folderId) {
-                const subfolders = await this.getSubfolders(folderId);
-                for (const sub of subfolders) {
-                    await this.delete(sub.id);
+                const allFolders = await this.getAll();
+                const foldersToDelete = new Set([folderId]);
+                let changed = true;
+                while(changed) {
+                    changed = false;
+                    allFolders.forEach(f => {
+                        if(foldersToDelete.has(f.parentId) && !foldersToDelete.has(f.id)) {
+                            foldersToDelete.add(f.id);
+                            changed = true;
+                        }
+                    });
                 }
-                const prompts = await promptRepo.getByFolder(folderId);
-                for (const p of prompts) {
-                    await promptRepo.delete(p.id);
+
+                for (const id of foldersToDelete) {
+                    const prompts = await promptRepo.getByFolder(id);
+                    for (const p of prompts) {
+                        await promptRepo.delete(p.id);
+                    }
+                    await dbOps.delete(FOLDERS_STORE, id);
                 }
-                return dbOps.delete(FOLDERS_STORE, folderId);
             },
         };
 
@@ -384,13 +394,14 @@
                 return dbOps.put(PROMPTS_STORE, updated);
             },
             get: (id) => dbOps.get(PROMPTS_STORE, id),
-            getByFolder: (folderId) => dbOps.getAll(PROMPTS_STORE, 'folderId', folderId),
+            getByFolder: (folderId) => dbOps.getAllByIndex(PROMPTS_STORE, 'folderId', folderId),
             delete: (id) => dbOps.delete(PROMPTS_STORE, id),
-            async getCountRecursive(folderId, allFoldersMap) {
-                let count = (await this.getByFolder(folderId)).length;
+            async getCountRecursive(folderId, allFoldersMap, allPrompts) {
+                const promptsInFolder = allPrompts.filter(p => p.folderId === folderId).length;
                 const children = [...allFoldersMap.values()].filter(f => f.parentId === folderId);
+                let count = promptsInFolder;
                 for (const child of children) {
-                    count += await this.getCountRecursive(child.id, allFoldersMap);
+                    count += await this.getCountRecursive(child.id, allFoldersMap, allPrompts);
                 }
                 return count;
             }
@@ -403,13 +414,11 @@
                 allFolders: new Map(),
             };
 
-            // DOM Elements
             const folderTreeEl = document.getElementById('folder-tree');
             const promptListEl = document.getElementById('prompt-list');
             const searchInput = document.getElementById('search-input');
             const currentFolderNameEl = document.getElementById('current-folder-name');
             
-            // Modals & Toasts
             const folderModal = new bootstrap.Modal('#folder-modal');
             const promptDetailModal = new bootstrap.Modal('#prompt-detail-modal');
             const promptModalBody = document.getElementById('prompt-modal-body');
@@ -428,41 +437,49 @@
 
             async function renderFolderTree() {
                 state.allFolders.clear();
-                const allDbFolders = await folderRepo.getSubfolders(null);
-                let foldersToProcess = [...allDbFolders];
-                while (foldersToProcess.length > 0) {
-                    const folder = foldersToProcess.shift();
-                    state.allFolders.set(folder.id, folder);
-                    const children = await folderRepo.getSubfolders(folder.id);
-                    foldersToProcess.push(...children);
-                }
+                const allFoldersList = await folderRepo.getAll();
+                allFoldersList.forEach(folder => state.allFolders.set(folder.id, folder));
                 
-                const rootFolders = [...state.allFolders.values()].filter(f => f.parentId === null);
-                folderTreeEl.innerHTML = '';
-                const treeUL = await createFolderTreeUL(rootFolders);
+                const allPrompts = await dbOps.getAllFromStore(PROMPTS_STORE);
+
+                const rootFolders = allFoldersList.filter(f => f.parentId === null);
+                
+                folderTreeEl.innerHTML = `
+                    <div class="folder-item ${state.currentFolderId === null ? 'active' : ''}" data-folder-id="null">
+                        <span class="folder-item-name"><i class="bi bi-house-door-fill me-2"></i>Radice</span>
+                        <span class="badge bg-secondary rounded-pill me-2">${allPrompts.filter(p => p.folderId === null).length}</span>
+                    </div>
+                `;
+                folderTreeEl.querySelector('.folder-item[data-folder-id="null"]').addEventListener('click', () => handleFolderSelect(null));
+
+                const treeUL = await createFolderTreeUL(rootFolders, allPrompts);
                 folderTreeEl.appendChild(treeUL);
             }
 
-            async function createFolderTreeUL(folders) {
+            async function createFolderTreeUL(folders, allPrompts) {
                 const ul = document.createElement('ul');
                 for (const folder of folders) {
-                    const count = await promptRepo.getCountRecursive(folder.id, state.allFolders);
+                    const count = await promptRepo.getCountRecursive(folder.id, state.allFolders, allPrompts);
                     const li = document.createElement('li');
                     li.innerHTML = `
                         <div class="folder-item ${state.currentFolderId === folder.id ? 'active' : ''}" data-folder-id="${folder.id}">
                             <span class="folder-item-name"><i class="bi bi-folder me-2"></i>${escapeHTML(folder.name)}</span>
                             <span class="badge bg-secondary rounded-pill me-2">${count}</span>
                             <span class="folder-actions">
-                                <button class="btn btn-outline-primary btn-sm add-subfolder-btn p-1" title="Aggiungi sottocartella"><i class="bi bi-folder-plus"></i></button>
                                 <button class="btn btn-outline-danger btn-sm delete-folder-btn p-1" title="Elimina cartella"><i class="bi bi-trash"></i></button>
                             </span>
                         </div>
                     `;
-                    li.querySelector('.folder-item').addEventListener('click', e => !e.target.closest('button') && handleFolderSelect(folder.id));
+                    li.querySelector('.folder-item').addEventListener('click', e => {
+                        if (!e.target.closest('button')) {
+                           const folderId = parseInt(e.currentTarget.dataset.folderId, 10);
+                           handleFolderSelect(folderId);
+                        }
+                    });
                     
                     const children = [...state.allFolders.values()].filter(f => f.parentId === folder.id);
                     if (children.length > 0) {
-                        li.appendChild(await createFolderTreeUL(children));
+                        li.appendChild(await createFolderTreeUL(children, allPrompts));
                     }
                     ul.appendChild(li);
                 }
@@ -566,7 +583,8 @@
                 const contentTextarea = promptModalBody.querySelector('#prompt-content-input');
                 const updatePlaceholders = () => {
                     const placeholdersContainer = promptModalBody.querySelector('#placeholder-fields');
-                    const found = new Set(contentTextarea.value.match(/{{(.*?)}}/g)?.map(m => m.slice(2, -1).trim()) || []);
+                    // FIX: Changed slice(2, -1) to slice(2, -2) to correctly remove both curly braces.
+                    const found = new Set(contentTextarea.value.match(/{{(.*?)}}/g)?.map(m => m.slice(2, -2).trim()) || []);
                     placeholdersContainer.innerHTML = '';
                     if (found.size === 0) {
                         placeholdersContainer.innerHTML = '<p class="text-muted small m-0">Nessun placeholder trovato. Usa {{nome}} per crearne uno.</p>';
@@ -633,28 +651,43 @@
             async function handleFolderSelect(folderId) {
                 state.currentFolderId = folderId;
                 document.querySelectorAll('#folder-tree .folder-item').forEach(el => el.classList.remove('active'));
-                document.querySelector(`#folder-tree .folder-item[data-folder-id="${folderId}"]`)?.classList.add('active');
                 
-                const folder = state.allFolders.get(folderId);
+                const selector = folderId === null ? `[data-folder-id="null"]` : `[data-folder-id="${folderId}"]`;
+                document.querySelector(`#folder-tree .folder-item${selector}`)?.classList.add('active');
+                
+                const folder = folderId === null ? null : state.allFolders.get(folderId);
                 currentFolderNameEl.textContent = folder ? folder.name : 'Radice';
                 await renderPromptList(folderId, searchInput.value);
             }
             
             async function handlePromptSelect(promptId) {
-                const prompt = await promptRepo.get(promptId);
-                if (prompt) {
-                    renderPromptDisplayView(prompt);
-                    promptDetailModal.show();
-                } else {
-                    showToast('Prompt non trovato.', 'danger');
+                try {
+                    const prompt = await promptRepo.get(promptId);
+                    if (prompt) {
+                        renderPromptDisplayView(prompt);
+                        promptDetailModal.show();
+                    } else {
+                        showToast('Prompt non trovato.', 'danger');
+                    }
+                } catch(e) {
+                     showToast('Errore nel caricamento del prompt.', 'danger');
                 }
             }
 
             function attachEventListeners() {
+                // FIX: Consolidated "Add Folder" button logic
                 document.getElementById('add-folder-btn').addEventListener('click', () => {
                     document.getElementById('folder-form').reset();
-                    document.getElementById('folder-modal-title').textContent = 'Nuova Cartella Radice';
-                    document.getElementById('parent-folder-id-input').value = 'null';
+                    const parentId = state.currentFolderId;
+                    const parentFolder = parentId ? state.allFolders.get(parentId) : null;
+
+                    if (parentFolder) {
+                        document.getElementById('folder-modal-title').textContent = `Nuova cartella in "${escapeHTML(parentFolder.name)}"`;
+                        document.getElementById('parent-folder-id-input').value = parentId;
+                    } else {
+                        document.getElementById('folder-modal-title').textContent = 'Nuova Cartella Radice';
+                        document.getElementById('parent-folder-id-input').value = 'null';
+                    }
                     folderModal.show();
                 });
 
@@ -664,31 +697,28 @@
                     const parentIdStr = document.getElementById('parent-folder-id-input').value;
                     const parentId = parentIdStr === 'null' ? null : parseInt(parentIdStr, 10);
                     if (name) {
-                        await folderRepo.add(name, parentId);
-                        folderModal.hide();
-                        showToast('Cartella creata.', 'success');
-                        await renderFolderTree();
+                        try {
+                            await folderRepo.add(name, parentId);
+                            folderModal.hide();
+                            showToast('Cartella creata.', 'success');
+                            await renderFolderTree();
+                        } catch (err) {
+                            showToast('Errore nella creazione della cartella.', 'danger');
+                        }
                     }
                 });
                 
                 folderTreeEl.addEventListener('click', async (e) => {
-                    const addBtn = e.target.closest('.add-subfolder-btn');
                     const delBtn = e.target.closest('.delete-folder-btn');
-                    if (addBtn) {
-                        const parentId = parseInt(addBtn.closest('.folder-item').dataset.folderId, 10);
-                        document.getElementById('folder-form').reset();
-                        document.getElementById('folder-modal-title').textContent = 'Nuova Sottocartella';
-                        document.getElementById('parent-folder-id-input').value = parentId;
-                        folderModal.show();
-                    }
                     if (delBtn) {
                         const folderId = parseInt(delBtn.closest('.folder-item').dataset.folderId, 10);
                         if (confirm('Sei sicuro di voler eliminare questa cartella e tutto il suo contenuto? L\'azione è irreversibile.')) {
                             await folderRepo.delete(folderId);
                             showToast('Cartella eliminata.', 'success');
-                            if (state.currentFolderId === folderId) state.currentFolderId = null;
+                            if (state.currentFolderId === folderId) {
+                                await handleFolderSelect(null);
+                            }
                             await renderFolderTree();
-                            await handleFolderSelect(state.currentFolderId);
                         }
                     }
                 });
