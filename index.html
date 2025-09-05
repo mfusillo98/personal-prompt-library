@@ -4,12 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Libreria di Prompt Personale</title>
-    
+
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-    
+
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -43,7 +43,12 @@
             display: flex;
             flex-direction: column;
         }
-        
+
+        #sidebar .sidebar-header .sidebar-logo {
+            height: 35px;
+            object-fit: contain;
+        }
+
         #main-content {
             margin-left: var(--sidebar-width);
             width: calc(100% - var(--sidebar-width));
@@ -57,7 +62,7 @@
             overflow-y: auto;
             padding: 0.5rem;
         }
-        
+
         #sidebar-footer {
             padding: 1rem;
             border-top: 1px solid #dee2e6;
@@ -156,7 +161,7 @@
             overflow-y: auto;
             font-family: 'Courier New', Courier, monospace;
         }
-        
+
         .modal-lg {
             max-width: 800px;
         }
@@ -166,7 +171,7 @@
             :root {
                 --sidebar-width: 70px;
             }
-            #sidebar .sidebar-title, #sidebar .folder-item-name, #sidebar .folder-actions, #sidebar .badge, #sidebar-footer .btn span {
+            #sidebar .sidebar-title, #sidebar .sidebar-logo, #sidebar .folder-item-name, #sidebar .folder-actions, #sidebar .badge, #sidebar-footer .btn span {
                 display: none;
             }
             #sidebar .sidebar-header .btn {
@@ -181,7 +186,7 @@
             }
         }
         @media (max-width: 768px) {
-             :root {
+            :root {
                 --sidebar-width: 0px;
             }
             .main-container {
@@ -189,7 +194,7 @@
             }
             #sidebar {
                 /* In a real app, this would be a togglable off-canvas menu */
-                display: none; 
+                display: none;
             }
             #main-content {
                 margin-left: 0;
@@ -200,221 +205,302 @@
 </head>
 <body>
 
-    <div class="main-container">
-        <!-- SIDEBAR: STRUTTURA CARTELLE -->
-        <aside id="sidebar">
-            <div class="sidebar-header p-3 border-bottom d-flex justify-content-between align-items-center">
+<div class="main-container">
+    <!-- SIDEBAR: STRUTTURA CARTELLE -->
+    <aside id="sidebar">
+        <div class="sidebar-header p-3 border-bottom d-flex justify-content-between align-items-center">
+            <div id="sidebar-title-container">
                 <h5 class="mb-0 fs-6 fw-bold sidebar-title"><i class="bi bi-folder-tree me-2"></i>Libreria</h5>
-                <button class="btn btn-primary btn-sm" id="add-folder-btn" title="Aggiungi nuova cartella">
-                    <i class="bi bi-folder-plus"></i>
-                </button>
             </div>
-            <div id="folder-tree-container">
-                <div id="folder-tree"></div>
+            <button class="btn btn-primary btn-sm" id="add-folder-btn" title="Aggiungi nuova cartella">
+                <i class="bi bi-folder-plus"></i>
+            </button>
+        </div>
+        <div id="folder-tree-container">
+            <div id="folder-tree"></div>
+        </div>
+        <div id="sidebar-footer">
+            <div class="d-grid gap-2">
+                <button class="btn btn-outline-secondary btn-sm" id="import-btn"><i class="bi bi-upload me-2"></i><span>Importa Dati</span></button>
+                <button class="btn btn-outline-secondary btn-sm" id="export-btn"><i class="bi bi-download me-2"></i><span>Esporta Dati</span></button>
+                <input type="file" id="import-file-input" class="d-none" accept=".json">
             </div>
-            <div id="sidebar-footer">
-                <div class="d-grid gap-2">
-                    <button class="btn btn-outline-secondary btn-sm" id="import-btn"><i class="bi bi-upload me-2"></i><span>Importa Dati</span></button>
-                    <button class="btn btn-outline-secondary btn-sm" id="export-btn"><i class="bi bi-download me-2"></i><span>Esporta Dati</span></button>
-                    <input type="file" id="import-file-input" class="d-none" accept=".json">
-                </div>
-            </div>
-        </aside>
+        </div>
+    </aside>
 
-        <!-- CONTENT: RICERCA E GRIGLIA PROMPT -->
-        <main id="main-content">
-            <div class="top-bar mb-4">
-                <div class="input-group input-group-lg shadow-sm">
-                    <span class="input-group-text bg-white border-end-0"><i class="bi bi-search"></i></span>
-                    <input type="text" class="form-control border-start-0" id="search-input" placeholder="Cerca per titolo, contenuto o #tag nella cartella corrente...">
-                </div>
+    <!-- CONTENT: RICERCA E GRIGLIA PROMPT -->
+    <main id="main-content">
+        <div class="top-bar mb-4">
+            <div class="input-group shadow-sm">
+                <span class="input-group-text bg-white border-end-0"><i class="bi bi-search"></i></span>
+                <input type="text" class="form-control border-start-0" id="search-input" placeholder="Cerca per titolo, contenuto o #tag...">
             </div>
+        </div>
 
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h4 class="mb-0">Prompt in "<span id="current-folder-name">Radice</span>"</h4>
-                <button class="btn btn-success" id="add-prompt-btn">
-                    <i class="bi bi-plus-lg me-1"></i> Nuovo Prompt
-                </button>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="mb-0">Prompt in "<span id="current-folder-name">Tutti i prompt</span>"</h4>
+            <button class="btn btn-success" id="add-prompt-btn">
+                <i class="bi bi-plus-lg me-1"></i> Nuovo Prompt
+            </button>
+        </div>
+
+        <div id="prompt-list" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-4">
+            <!-- Le card dei prompt verranno generate qui da JS -->
+        </div>
+    </main>
+</div>
+
+<!-- Modal per Aggiungere/Modificare Cartella -->
+<div class="modal fade" id="folder-modal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="folder-modal-title">Nuova Cartella</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-
-            <div id="prompt-list" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-4">
-                <!-- Le card dei prompt verranno generate qui da JS -->
-            </div>
-        </main>
-    </div>
-
-    <!-- Modal per Aggiungere/Modificare Cartella -->
-    <div class="modal fade" id="folder-modal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="folder-modal-title">Nuova Cartella</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="folder-form">
-                        <input type="hidden" id="parent-folder-id-input">
-                        <div class="mb-3">
-                            <label for="folder-name-input" class="form-label">Nome Cartella</label>
-                            <input type="text" class="form-control" id="folder-name-input" required>
-                        </div>
-                        <button type="submit" class="btn btn-primary">Salva</button>
-                    </form>
-                </div>
+            <div class="modal-body">
+                <form id="folder-form">
+                    <input type="hidden" id="parent-folder-id-input">
+                    <div class="mb-3">
+                        <label for="folder-name-input" class="form-label">Nome Cartella</label>
+                        <input type="text" class="form-control" id="folder-name-input" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Salva</button>
+                </form>
             </div>
         </div>
     </div>
-    
-    <!-- Modal per Dettaglio/Editor Prompt -->
-    <div class="modal fade" id="prompt-detail-modal" tabindex="-1">
-        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="prompt-modal-title">Dettaglio Prompt</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body" id="prompt-modal-body">
-                    <!-- Contenuto dinamico del modal -->
-                </div>
+</div>
+
+<!-- Modal per Dettaglio/Editor Prompt -->
+<div class="modal fade" id="prompt-detail-modal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="prompt-modal-title">Dettaglio Prompt</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="prompt-modal-body">
+                <!-- Contenuto dinamico del modal -->
             </div>
         </div>
     </div>
+</div>
 
-    <!-- Toast per le notifiche -->
-    <div class="toast-container position-fixed bottom-0 end-0 p-3">
-        <div id="app-toast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
-            <div class="toast-header">
-                <strong class="me-auto">Notifica</strong>
-                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
-            </div>
-            <div class="toast-body"></div>
+<!-- Toast per le notifiche -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="app-toast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-header">
+            <strong class="me-auto">Notifica</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
         </div>
+        <div class="toast-body"></div>
     </div>
+</div>
 
 
-    <!-- Bootstrap 5 JS Bundle -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    
-    <!-- Custom JS Incorporato -->
-    <script>
-        // --- DATABASE LOGIC (IndexedDB) ---
-        const DB_NAME = 'PromptLibraryDB';
-        const DB_VERSION = 1;
-        const FOLDERS_STORE = 'folders';
-        const PROMPTS_STORE = 'prompts';
-        let db;
+<!-- Bootstrap 5 JS Bundle -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
-        const dbOps = {
-            initDB: () => new Promise((resolve, reject) => {
-                const request = indexedDB.open(DB_NAME, DB_VERSION);
-                request.onerror = e => reject('Database error: ' + e.target.error);
-                request.onupgradeneeded = e => {
-                    const dbInstance = e.target.result;
-                    if (!dbInstance.objectStoreNames.contains(FOLDERS_STORE)) {
-                        const fs = dbInstance.createObjectStore(FOLDERS_STORE, { keyPath: 'id', autoIncrement: true });
-                        fs.createIndex('parentId', 'parentId', { unique: false });
+<!-- Custom JS Incorporato -->
+<script>
+    // --- DATABASE LOGIC (IndexedDB) ---
+    const DB_NAME = 'PromptLibraryDB';
+    const DB_VERSION = 1;
+    const FOLDERS_STORE = 'folders';
+    const PROMPTS_STORE = 'prompts';
+    let db;
+
+    const dbOps = {
+        initDB: () => new Promise((resolve, reject) => {
+            const request = indexedDB.open(DB_NAME, DB_VERSION);
+            request.onerror = e => reject('Database error: ' + e.target.error);
+            request.onupgradeneeded = e => {
+                const dbInstance = e.target.result;
+                if (!dbInstance.objectStoreNames.contains(FOLDERS_STORE)) {
+                    const fs = dbInstance.createObjectStore(FOLDERS_STORE, { keyPath: 'id', autoIncrement: true });
+                    fs.createIndex('parentId', 'parentId', { unique: false });
+                }
+                if (!dbInstance.objectStoreNames.contains(PROMPTS_STORE)) {
+                    const ps = dbInstance.createObjectStore(PROMPTS_STORE, { keyPath: 'id', autoIncrement: true });
+                    ps.createIndex('folderId', 'folderId', { unique: false });
+                    ps.createIndex('tags', 'tags', { unique: false, multiEntry: true });
+                }
+            };
+            request.onsuccess = e => {
+                db = e.target.result;
+                resolve(db);
+            };
+        }),
+        add: (storeName, data) => new Promise((resolve, reject) => {
+            const tx = db.transaction(storeName, 'readwrite');
+            const store = tx.objectStore(storeName);
+            const req = store.add(data);
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+        }),
+        put: (storeName, data) => new Promise((resolve, reject) => {
+            const tx = db.transaction(storeName, 'readwrite');
+            const store = tx.objectStore(storeName);
+            const req = store.put(data);
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+        }),
+        delete: (storeName, id) => new Promise((resolve, reject) => {
+            const tx = db.transaction(storeName, 'readwrite');
+            const store = tx.objectStore(storeName);
+            const req = store.delete(id);
+            req.onsuccess = () => resolve();
+            req.onerror = () => reject(req.error);
+        }),
+        get: (storeName, id) => new Promise((resolve, reject) => {
+            const tx = db.transaction(storeName, 'readonly');
+            const store = tx.objectStore(storeName);
+            const req = store.get(id);
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+        }),
+        getAllFromStore: (storeName) => new Promise((resolve, reject) => {
+            const tx = db.transaction(storeName, 'readonly');
+            const store = tx.objectStore(storeName);
+            const req = store.getAll();
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+        }),
+        clearStore: (storeName) => new Promise((resolve, reject) => {
+            const tx = db.transaction(storeName, 'readwrite');
+            const store = tx.objectStore(storeName);
+            const req = store.clear();
+            req.onsuccess = () => resolve();
+            req.onerror = () => reject(req.error);
+        }),
+    };
+
+    const folderRepo = {
+        add: (name, parentId = null) => dbOps.add(FOLDERS_STORE, { name, parentId }),
+        getAll: () => dbOps.getAllFromStore(FOLDERS_STORE),
+        async delete(folderId) {
+            const allFolders = await this.getAll();
+            const foldersToDelete = new Set([folderId]);
+            let changed = true;
+            while(changed) {
+                changed = false;
+                allFolders.forEach(f => {
+                    if(foldersToDelete.has(f.parentId) && !foldersToDelete.has(f.id)) {
+                        foldersToDelete.add(f.id);
+                        changed = true;
                     }
-                    if (!dbInstance.objectStoreNames.contains(PROMPTS_STORE)) {
-                        const ps = dbInstance.createObjectStore(PROMPTS_STORE, { keyPath: 'id', autoIncrement: true });
-                        ps.createIndex('folderId', 'folderId', { unique: false });
-                        ps.createIndex('tags', 'tags', { unique: false, multiEntry: true });
+                });
+            }
+
+            for (const id of foldersToDelete) {
+                const prompts = await promptRepo.getByFolderRecursive(id, new Map(allFolders.map(f => [f.id, f])));
+                for (const p of prompts) {
+                    await promptRepo.delete(p.id);
+                }
+                await dbOps.delete(FOLDERS_STORE, id);
+            }
+        },
+    };
+
+    const promptRepo = {
+        add: (prompt) => {
+            prompt.createdAt = new Date();
+            prompt.updatedAt = new Date();
+            return dbOps.add(PROMPTS_STORE, prompt);
+        },
+        update: async (id, data) => {
+            const existing = await dbOps.get(PROMPTS_STORE, id);
+            if (!existing) throw new Error('Prompt not found');
+            const updated = { ...existing, ...data, updatedAt: new Date() };
+            return dbOps.put(PROMPTS_STORE, updated);
+        },
+        get: (id) => dbOps.get(PROMPTS_STORE, id),
+        async getByFolderRecursive(folderId, allFoldersMap) {
+            const allPrompts = await dbOps.getAllFromStore(PROMPTS_STORE);
+            if (folderId === null) {
+                return allPrompts; // Show all prompts for the root
+            }
+
+            const descendantIds = new Set([folderId]);
+            const queue = [folderId];
+            while(queue.length > 0) {
+                const currentId = queue.shift();
+                for(const folder of allFoldersMap.values()) {
+                    if(folder.parentId === currentId) {
+                        descendantIds.add(folder.id);
+                        queue.push(folder.id);
                     }
-                };
-                request.onsuccess = e => {
-                    db = e.target.result;
-                    resolve(db);
-                };
-            }),
-            add: (storeName, data) => new Promise((resolve, reject) => {
-                const tx = db.transaction(storeName, 'readwrite');
-                const store = tx.objectStore(storeName);
-                const req = store.add(data);
-                req.onsuccess = () => resolve(req.result);
-                req.onerror = () => reject(req.error);
-            }),
-            put: (storeName, data) => new Promise((resolve, reject) => {
-                const tx = db.transaction(storeName, 'readwrite');
-                const store = tx.objectStore(storeName);
-                const req = store.put(data);
-                req.onsuccess = () => resolve(req.result);
-                req.onerror = () => reject(req.error);
-            }),
-            delete: (storeName, id) => new Promise((resolve, reject) => {
-                const tx = db.transaction(storeName, 'readwrite');
-                const store = tx.objectStore(storeName);
-                const req = store.delete(id);
-                req.onsuccess = () => resolve();
-                req.onerror = () => reject(req.error);
-            }),
-            get: (storeName, id) => new Promise((resolve, reject) => {
-                const tx = db.transaction(storeName, 'readonly');
-                const store = tx.objectStore(storeName);
-                const req = store.get(id);
-                req.onsuccess = () => resolve(req.result);
-                req.onerror = () => reject(req.error);
-            }),
-            getAllFromStore: (storeName) => new Promise((resolve, reject) => {
-                const tx = db.transaction(storeName, 'readonly');
-                const store = tx.objectStore(storeName);
-                const req = store.getAll();
-                req.onsuccess = () => resolve(req.result);
-                req.onerror = () => reject(req.error);
-            }),
-            clearStore: (storeName) => new Promise((resolve, reject) => {
-                 const tx = db.transaction(storeName, 'readwrite');
-                 const store = tx.objectStore(storeName);
-                 const req = store.clear();
-                 req.onsuccess = () => resolve();
-                 req.onerror = () => reject(req.error);
-            }),
+                }
+            }
+            return allPrompts.filter(p => descendantIds.has(p.folderId));
+        },
+        delete: (id) => dbOps.delete(PROMPTS_STORE, id),
+        async getCountRecursive(folderId, allFoldersMap, allPrompts) {
+            const descendantIds = new Set([folderId]);
+            const queue = [folderId];
+            while(queue.length > 0) {
+                const currentId = queue.shift();
+                for(const folder of allFoldersMap.values()) {
+                    if(folder.parentId === currentId) {
+                        descendantIds.add(folder.id);
+                        queue.push(folder.id);
+                    }
+                }
+            }
+            return allPrompts.filter(p => descendantIds.has(p.folderId)).length;
+        }
+    };
+
+    // --- APPLICATION LOGIC ---
+    document.addEventListener('DOMContentLoaded', () => {
+        let state = {
+            currentFolderId: null,
+            allFolders: new Map(),
+            readOnly: false,
+            readOnlyData: null
         };
 
-        const folderRepo = {
-            add: (name, parentId = null) => dbOps.add(FOLDERS_STORE, { name, parentId }),
-            getAll: () => dbOps.getAllFromStore(FOLDERS_STORE),
-            async delete(folderId) {
-                const allFolders = await this.getAll();
-                const foldersToDelete = new Set([folderId]);
-                let changed = true;
-                while(changed) {
-                    changed = false;
-                    allFolders.forEach(f => {
-                        if(foldersToDelete.has(f.parentId) && !foldersToDelete.has(f.id)) {
-                            foldersToDelete.add(f.id);
-                            changed = true;
+        const folderTreeEl = document.getElementById('folder-tree');
+        const promptListEl = document.getElementById('prompt-list');
+        const searchInput = document.getElementById('search-input');
+        const currentFolderNameEl = document.getElementById('current-folder-name');
+
+        const folderModal = new bootstrap.Modal('#folder-modal');
+        const promptDetailModal = new bootstrap.Modal('#prompt-detail-modal');
+        const promptModalBody = document.getElementById('prompt-modal-body');
+        const promptModalTitle = document.getElementById('prompt-modal-title');
+        const appToast = new bootstrap.Toast('#app-toast');
+
+        const showToast = (message, type = 'success') => {
+            const toastBody = document.querySelector('#app-toast .toast-body');
+            const toastHeader = document.querySelector('#app-toast .toast-header');
+            toastBody.textContent = message;
+            toastHeader.className = `toast-header text-white bg-${type}`;
+            appToast.show();
+        };
+
+        const escapeHTML = (str) => str?.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]) ?? '';
+
+        const readOnlyHelpers = {
+            getCountRecursive(folderId, allFoldersMap, allPrompts) {
+                const descendantIds = new Set([folderId]);
+                const queue = [folderId];
+                while(queue.length > 0) {
+                    const currentId = queue.shift();
+                    for(const folder of allFoldersMap.values()) {
+                        if(folder.parentId === currentId) {
+                            descendantIds.add(folder.id);
+                            queue.push(folder.id);
                         }
-                    });
-                }
-
-                for (const id of foldersToDelete) {
-                    const prompts = await promptRepo.getByFolderRecursive(id, new Map(allFolders.map(f => [f.id, f])));
-                    for (const p of prompts) {
-                        await promptRepo.delete(p.id);
                     }
-                    await dbOps.delete(FOLDERS_STORE, id);
                 }
+                return allPrompts.filter(p => descendantIds.has(p.folderId)).length;
             },
-        };
-
-        const promptRepo = {
-            add: (prompt) => {
-                prompt.createdAt = new Date();
-                prompt.updatedAt = new Date();
-                return dbOps.add(PROMPTS_STORE, prompt);
-            },
-            update: async (id, data) => {
-                const existing = await dbOps.get(PROMPTS_STORE, id);
-                if (!existing) throw new Error('Prompt not found');
-                const updated = { ...existing, ...data, updatedAt: new Date() };
-                return dbOps.put(PROMPTS_STORE, updated);
-            },
-            get: (id) => dbOps.get(PROMPTS_STORE, id),
-            async getByFolderRecursive(folderId, allFoldersMap) {
-                const allPrompts = await dbOps.getAllFromStore(PROMPTS_STORE);
-                if (folderId === null) {
-                    return allPrompts.filter(p => p.folderId === null);
-                }
-                
+            getByFolderRecursive(folderId, data) {
+                const allFoldersMap = new Map(data.folders.map(f => [f.id, f]));
+                const allPrompts = data.prompts;
+                if (folderId === null) return allPrompts; // Show all prompts for the root
                 const descendantIds = new Set([folderId]);
                 const queue = [folderId];
                 while(queue.length > 0) {
@@ -427,146 +513,117 @@
                     }
                 }
                 return allPrompts.filter(p => descendantIds.has(p.folderId));
-            },
-            delete: (id) => dbOps.delete(PROMPTS_STORE, id),
-            async getCountRecursive(folderId, allFoldersMap, allPrompts) {
-                const descendantIds = new Set([folderId]);
-                const queue = [folderId];
-                 while(queue.length > 0) {
-                    const currentId = queue.shift();
-                    for(const folder of allFoldersMap.values()) {
-                        if(folder.parentId === currentId) {
-                            descendantIds.add(folder.id);
-                            queue.push(folder.id);
-                        }
-                    }
-                }
-                return allPrompts.filter(p => descendantIds.has(p.folderId)).length;
             }
         };
 
-        // --- APPLICATION LOGIC ---
-        document.addEventListener('DOMContentLoaded', () => {
-            let state = {
-                currentFolderId: null,
-                allFolders: new Map(),
-            };
-
-            const folderTreeEl = document.getElementById('folder-tree');
-            const promptListEl = document.getElementById('prompt-list');
-            const searchInput = document.getElementById('search-input');
-            const currentFolderNameEl = document.getElementById('current-folder-name');
-            
-            const folderModal = new bootstrap.Modal('#folder-modal');
-            const promptDetailModal = new bootstrap.Modal('#prompt-detail-modal');
-            const promptModalBody = document.getElementById('prompt-modal-body');
-            const promptModalTitle = document.getElementById('prompt-modal-title');
-            const appToast = new bootstrap.Toast('#app-toast');
-
-            const showToast = (message, type = 'success') => {
-                const toastBody = document.querySelector('#app-toast .toast-body');
-                const toastHeader = document.querySelector('#app-toast .toast-header');
-                toastBody.textContent = message;
-                toastHeader.className = `toast-header text-white bg-${type}`;
-                appToast.show();
-            };
-            
-            const escapeHTML = (str) => str?.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]) ?? '';
-
-            const getFolderPath = (folderId, allFoldersMap) => {
-                if (folderId === null) return 'Radice';
-                const path = [];
-                let currentId = folderId;
-                while(currentId) {
-                    const folder = allFoldersMap.get(currentId);
-                    if (folder) {
-                        path.unshift(folder.name);
-                        currentId = folder.parentId;
-                    } else {
-                        break;
-                    }
+        const getFolderPath = (folderId, allFoldersMap) => {
+            if (folderId === null) return 'Tutti i prompt';
+            const path = [];
+            let currentId = folderId;
+            while(currentId) {
+                const folder = allFoldersMap.get(currentId);
+                if (folder) {
+                    path.unshift(folder.name);
+                    currentId = folder.parentId;
+                } else {
+                    break;
                 }
-                return `Radice / ${path.map(escapeHTML).join(' / ')}`;
-            };
+            }
+            return `Tutti i prompt / ${path.map(escapeHTML).join(' / ')}`;
+        };
 
-            async function renderFolderTree() {
-                state.allFolders.clear();
-                const allFoldersList = await folderRepo.getAll();
-                allFoldersList.forEach(folder => state.allFolders.set(folder.id, folder));
-                
-                const allPrompts = await dbOps.getAllFromStore(PROMPTS_STORE);
-
-                const rootFolders = allFoldersList.filter(f => f.parentId === null);
-                
-                folderTreeEl.innerHTML = `
-                    <div class="folder-item ${state.currentFolderId === null ? 'active' : ''}" data-folder-id="null">
-                        <span class="folder-item-name"><i class="bi bi-house-door-fill me-2"></i>Radice</span>
-                        <span class="badge bg-secondary rounded-pill me-2">${allPrompts.filter(p => p.folderId === null).length}</span>
-                    </div>
-                `;
-                folderTreeEl.querySelector('.folder-item[data-folder-id="null"]').addEventListener('click', () => handleFolderSelect(null));
-
-                const treeUL = await createFolderTreeUL(rootFolders, allPrompts);
-                folderTreeEl.appendChild(treeUL);
+        async function renderFolderTree() {
+            let allFoldersList, allPrompts;
+            if(state.readOnly) {
+                allFoldersList = state.readOnlyData.folders;
+                allPrompts = state.readOnlyData.prompts;
+            } else {
+                allFoldersList = await folderRepo.getAll();
+                allPrompts = await dbOps.getAllFromStore(PROMPTS_STORE);
             }
 
-            async function createFolderTreeUL(folders, allPrompts) {
-                const ul = document.createElement('ul');
-                for (const folder of folders) {
-                    const count = await promptRepo.getCountRecursive(folder.id, state.allFolders, allPrompts);
-                    const li = document.createElement('li');
-                    li.innerHTML = `
+            state.allFolders.clear();
+            allFoldersList.forEach(folder => state.allFolders.set(folder.id, folder));
+
+            const rootFolders = allFoldersList.filter(f => f.parentId === null);
+            const rootPromptCount = allPrompts.length; // Count all prompts for the root
+
+            folderTreeEl.innerHTML = `
+                    <div class="folder-item ${state.currentFolderId === null ? 'active' : ''}" data-folder-id="null">
+                        <span class="folder-item-name"><i class="bi bi-house-door-fill me-2"></i>Tutti i prompt</span>
+                        <span class="badge bg-secondary rounded-pill me-2">${rootPromptCount}</span>
+                    </div>
+                `;
+            folderTreeEl.querySelector('.folder-item[data-folder-id="null"]').addEventListener('click', () => handleFolderSelect(null));
+
+            const treeUL = await createFolderTreeUL(rootFolders, allPrompts);
+            folderTreeEl.appendChild(treeUL);
+        }
+
+        async function createFolderTreeUL(folders, allPrompts) {
+            const ul = document.createElement('ul');
+            for (const folder of folders) {
+                const count = state.readOnly
+                    ? readOnlyHelpers.getCountRecursive(folder.id, state.allFolders, allPrompts)
+                    : await promptRepo.getCountRecursive(folder.id, state.allFolders, allPrompts);
+
+                const li = document.createElement('li');
+                li.innerHTML = `
                         <div class="folder-item ${state.currentFolderId === folder.id ? 'active' : ''}" data-folder-id="${folder.id}">
                             <span class="folder-item-name"><i class="bi bi-folder me-2"></i>${escapeHTML(folder.name)}</span>
                             <span class="badge bg-secondary rounded-pill me-2">${count}</span>
+                            ${!state.readOnly ? `
                             <span class="folder-actions">
                                 <button class="btn btn-outline-danger btn-sm delete-folder-btn p-1" title="Elimina cartella"><i class="bi bi-trash"></i></button>
-                            </span>
+                            </span>` : ''}
                         </div>
                     `;
-                    li.querySelector('.folder-item').addEventListener('click', e => {
-                        if (!e.target.closest('button')) {
-                           const folderId = parseInt(e.currentTarget.dataset.folderId, 10);
-                           handleFolderSelect(folderId);
-                        }
-                    });
-                    
-                    const children = [...state.allFolders.values()].filter(f => f.parentId === folder.id);
-                    if (children.length > 0) {
-                        li.appendChild(await createFolderTreeUL(children, allPrompts));
+                li.querySelector('.folder-item').addEventListener('click', e => {
+                    if (!e.target.closest('button')) {
+                        const folderId = parseInt(e.currentTarget.dataset.folderId, 10);
+                        handleFolderSelect(folderId);
                     }
-                    ul.appendChild(li);
+                });
+
+                const children = [...state.allFolders.values()].filter(f => f.parentId === folder.id);
+                if (children.length > 0) {
+                    li.appendChild(await createFolderTreeUL(children, allPrompts));
                 }
-                return ul;
+                ul.appendChild(li);
             }
+            return ul;
+        }
 
-            async function renderPromptList(folderId, searchTerm = '') {
-                try {
-                    let prompts = await promptRepo.getByFolderRecursive(folderId, state.allFolders);
-                    if (searchTerm) {
-                        const lower = searchTerm.toLowerCase();
-                        const tags = (lower.match(/#\w+/g) || []).map(t => t.substring(1));
-                        const text = lower.replace(/#\w+/g, '').trim();
-                        prompts = prompts.filter(p => {
-                            const titleMatch = text ? p.title.toLowerCase().includes(text) : true;
-                            const contentMatch = text ? p.content.toLowerCase().includes(text) : true;
-                            const tagMatch = tags.length > 0 ? tags.every(t => p.tags.some(pt => pt.toLowerCase() === t)) : true;
-                            return (titleMatch || contentMatch) && tagMatch;
-                        });
-                    }
+        async function renderPromptList(folderId, searchTerm = '') {
+            try {
+                let prompts = state.readOnly
+                    ? readOnlyHelpers.getByFolderRecursive(folderId, state.readOnlyData)
+                    : await promptRepo.getByFolderRecursive(folderId, state.allFolders);
 
-                    promptListEl.innerHTML = '';
-                    if (prompts.length === 0) {
-                        promptListEl.innerHTML = `<div class="col-12"><p class="text-center text-muted mt-3">Nessun prompt in questa cartella.</p></div>`;
-                        return;
-                    }
+                if (searchTerm) {
+                    const lower = searchTerm.toLowerCase();
+                    const tags = (lower.match(/#\w+/g) || []).map(t => t.substring(1));
+                    const text = lower.replace(/#\w+/g, '').trim();
+                    prompts = prompts.filter(p => {
+                        const titleMatch = text ? p.title.toLowerCase().includes(text) : true;
+                        const contentMatch = text ? p.content.toLowerCase().includes(text) : true;
+                        const tagMatch = tags.length > 0 ? tags.every(t => p.tags.some(pt => pt.toLowerCase() === t)) : true;
+                        return (titleMatch || contentMatch) && tagMatch;
+                    });
+                }
 
-                    prompts.sort((a,b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-                    prompts.forEach(p => {
-                        const col = document.createElement('div');
-                        const path = getFolderPath(p.folderId, state.allFolders);
-                        col.className = 'col';
-                        col.innerHTML = `
+                promptListEl.innerHTML = '';
+                if (prompts.length === 0) {
+                    promptListEl.innerHTML = `<div class="col-12"><p class="text-center text-muted mt-3">Nessun prompt in questa cartella.</p></div>`;
+                    return;
+                }
+
+                prompts.sort((a,b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+                prompts.forEach(p => {
+                    const col = document.createElement('div');
+                    const path = getFolderPath(p.folderId, state.allFolders);
+                    col.className = 'col';
+                    col.innerHTML = `
                             <div class="card h-100 shadow-sm prompt-card" data-prompt-id="${p.id}">
                                 <div class="card-body">
                                     <h5 class="card-title h6 fw-bold text-truncate">${escapeHTML(p.title)}</h5>
@@ -581,28 +638,31 @@
                                 </div>
                             </div>
                         `;
-                        col.querySelector('.prompt-card').addEventListener('click', () => handlePromptSelect(p.id));
-                        promptListEl.appendChild(col);
-                    });
-                } catch (error) {
-                    console.error("Error loading prompts:", error);
-                    showToast("Errore nel caricamento dei prompt.", 'danger');
-                }
-            }
-
-            function renderPromptDisplayView(prompt) {
-                promptModalTitle.textContent = `Dettaglio: ${prompt.title}`;
-                const path = getFolderPath(prompt.folderId, state.allFolders);
-                const displayContent = escapeHTML(prompt.content).replace(/{{(.*?)}}/g, (match, name) => {
-                     const tooltip = prompt.placeholders[name] ? escapeHTML(prompt.placeholders[name]) : 'Nessuna descrizione';
-                     return `<span class="placeholder-badge" data-bs-toggle="tooltip" title="${tooltip}">${escapeHTML(name)}</span>`;
+                    col.querySelector('.prompt-card').addEventListener('click', () => handlePromptSelect(p.id));
+                    promptListEl.appendChild(col);
                 });
+            } catch (error) {
+                console.error("Error loading prompts:", error);
+                showToast("Errore nel caricamento dei prompt.", 'danger');
+            }
+        }
 
-                promptModalBody.innerHTML = `
+        function renderPromptDisplayView(prompt) {
+            promptModalTitle.textContent = `Dettaglio: ${prompt.title}`;
+            const path = getFolderPath(prompt.folderId, state.allFolders);
+            const displayContent = escapeHTML(prompt.content).replace(/{{(.*?)}}/g, (match, name) => {
+                const tooltip = prompt.placeholders[name] ? escapeHTML(prompt.placeholders[name]) : 'Nessuna descrizione';
+                return `<span class="placeholder-badge" data-bs-toggle="tooltip" title="${tooltip}">${escapeHTML(name)}</span>`;
+            });
+
+            promptModalBody.innerHTML = `
                     <div class="d-flex justify-content-end gap-2 mb-3">
+                        <button class="btn btn-info btn-sm" id="copy-template-btn" title="Copia come template"><i class="bi bi-clipboard me-1"></i> Copia Template</button>
                         <button class="btn btn-primary btn-sm" id="use-prompt-btn"><i class="bi bi-play-fill me-1"></i> Utilizza</button>
+                        ${!state.readOnly ? `
                         <button class="btn btn-secondary btn-sm" id="edit-prompt-btn"><i class="bi bi-pencil-fill me-1"></i> Modifica</button>
                         <button class="btn btn-danger btn-sm" id="delete-prompt-btn"><i class="bi bi-trash-fill me-1"></i> Elimina</button>
+                        ` : ''}
                     </div>
                     <div class="text-muted mb-2"><i class="bi bi-folder2-open me-2"></i>${path}</div>
                     <div class="mb-3">
@@ -611,9 +671,19 @@
                     <div id="prompt-content-display">${displayContent}</div>
                     <div class="text-muted small mt-2">Ultima modifica: ${new Date(prompt.updatedAt).toLocaleString()}</div>
                 `;
-                
-                [...promptModalBody.querySelectorAll('[data-bs-toggle="tooltip"]')].forEach(el => new bootstrap.Tooltip(el));
-                promptModalBody.querySelector('#use-prompt-btn').addEventListener('click', () => renderUsageView(prompt));
+
+            [...promptModalBody.querySelectorAll('[data-bs-toggle="tooltip"]')].forEach(el => new bootstrap.Tooltip(el));
+
+            promptModalBody.querySelector('#copy-template-btn').addEventListener('click', () => {
+                const templateText = prompt.content.replace(/{{(.*?)}}/g, (match, name) => `[${name.trim()}]`);
+                navigator.clipboard.writeText(templateText)
+                    .then(() => showToast('Template copiato!', 'success'))
+                    .catch(() => showToast('Copia fallita', 'danger'));
+            });
+
+            promptModalBody.querySelector('#use-prompt-btn').addEventListener('click', () => renderUsageView(prompt));
+
+            if(!state.readOnly) {
                 promptModalBody.querySelector('#edit-prompt-btn').addEventListener('click', () => renderPromptForm(prompt));
                 promptModalBody.querySelector('#delete-prompt-btn').addEventListener('click', async () => {
                     if (confirm('Sei sicuro di voler eliminare questo prompt?')) {
@@ -625,11 +695,12 @@
                     }
                 });
             }
-            
-            function renderPromptForm(prompt = null) {
-                const isEditing = !!prompt;
-                promptModalTitle.textContent = isEditing ? 'Modifica Prompt' : 'Nuovo Prompt';
-                promptModalBody.innerHTML = `
+        }
+
+        function renderPromptForm(prompt = null) {
+            const isEditing = !!prompt;
+            promptModalTitle.textContent = isEditing ? 'Modifica Prompt' : 'Nuovo Prompt';
+            promptModalBody.innerHTML = `
                     <form id="prompt-form">
                         <div class="mb-3"><label class="form-label">Titolo</label><input type="text" id="prompt-title-input" class="form-control" required value="${isEditing ? escapeHTML(prompt.title) : ''}"></div>
                         <div class="mb-3"><label class="form-label">Contenuto</label><textarea id="prompt-content-input" class="form-control" rows="8" required>${isEditing ? escapeHTML(prompt.content) : ''}</textarea></div>
@@ -638,174 +709,180 @@
                         <div class="d-flex justify-content-end gap-2"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button><button type="submit" class="btn btn-success">Salva</button></div>
                     </form>
                 `;
-                const contentTextarea = promptModalBody.querySelector('#prompt-content-input');
-                const updatePlaceholders = () => {
-                    const placeholdersContainer = promptModalBody.querySelector('#placeholder-fields');
-                    const found = new Set(contentTextarea.value.match(/{{(.*?)}}/g)?.map(m => m.slice(2, -2).trim()) || []);
-                    placeholdersContainer.innerHTML = '';
-                    if (found.size === 0) {
-                        placeholdersContainer.innerHTML = '<p class="text-muted small m-0">Nessun placeholder trovato. Usa {{nome}} per crearne uno.</p>';
-                    } else {
-                        found.forEach(name => {
-                            const desc = (isEditing && prompt.placeholders?.[name]) || '';
-                            placeholdersContainer.innerHTML += `<div class="mb-2"><label class="form-label fw-bold small">${escapeHTML(name)}</label><input type="text" data-placeholder-name="${escapeHTML(name)}" class="form-control form-control-sm" value="${escapeHTML(desc)}"></div>`;
-                        });
-                    }
+            const contentTextarea = promptModalBody.querySelector('#prompt-content-input');
+            const updatePlaceholders = () => {
+                const placeholdersContainer = promptModalBody.querySelector('#placeholder-fields');
+                const found = new Set(contentTextarea.value.match(/{{(.*?)}}/g)?.map(m => m.slice(2, -2).trim()) || []);
+                placeholdersContainer.innerHTML = '';
+                if (found.size === 0) {
+                    placeholdersContainer.innerHTML = '<p class="text-muted small m-0">Nessun placeholder trovato. Usa {{nome}} per crearne uno.</p>';
+                } else {
+                    found.forEach(name => {
+                        const desc = (isEditing && prompt.placeholders?.[name]) || '';
+                        placeholdersContainer.innerHTML += `<div class="mb-2"><label class="form-label fw-bold small">${escapeHTML(name)}</label><input type="text" data-placeholder-name="${escapeHTML(name)}" class="form-control form-control-sm" value="${escapeHTML(desc)}"></div>`;
+                    });
+                }
+            };
+            contentTextarea.addEventListener('input', updatePlaceholders);
+            updatePlaceholders();
+
+            promptModalBody.querySelector('#prompt-form').addEventListener('submit', async e => {
+                e.preventDefault();
+                const data = {
+                    title: document.getElementById('prompt-title-input').value,
+                    content: document.getElementById('prompt-content-input').value,
+                    tags: document.getElementById('prompt-tags-input').value.split(',').map(t => t.trim()).filter(Boolean),
+                    placeholders: Object.fromEntries([...document.querySelectorAll('#placeholder-fields input')].map(i => [i.dataset.placeholderName, i.value])),
+                    folderId: state.currentFolderId
                 };
-                contentTextarea.addEventListener('input', updatePlaceholders);
-                updatePlaceholders();
-
-                promptModalBody.querySelector('#prompt-form').addEventListener('submit', async e => {
-                    e.preventDefault();
-                    const data = {
-                        title: document.getElementById('prompt-title-input').value,
-                        content: document.getElementById('prompt-content-input').value,
-                        tags: document.getElementById('prompt-tags-input').value.split(',').map(t => t.trim()).filter(Boolean),
-                        placeholders: Object.fromEntries([...document.querySelectorAll('#placeholder-fields input')].map(i => [i.dataset.placeholderName, i.value])),
-                        folderId: state.currentFolderId
-                    };
-                    try {
-                        if (isEditing) {
-                            await promptRepo.update(prompt.id, data);
-                            showToast('Prompt aggiornato!', 'success');
-                        } else {
-                            await promptRepo.add(data);
-                            showToast('Prompt creato!', 'success');
-                        }
-                        promptDetailModal.hide();
-                        await renderPromptList(state.currentFolderId);
-                        await renderFolderTree();
-                    } catch (err) {
-                        showToast('Errore nel salvataggio.', 'danger');
-                        console.error(err);
+                try {
+                    if (isEditing) {
+                        await promptRepo.update(prompt.id, data);
+                        showToast('Prompt aggiornato!', 'success');
+                    } else {
+                        await promptRepo.add(data);
+                        showToast('Prompt creato!', 'success');
                     }
-                });
-            }
+                    promptDetailModal.hide();
+                    await renderPromptList(state.currentFolderId);
+                    await renderFolderTree();
+                } catch (err) {
+                    showToast('Errore nel salvataggio.', 'danger');
+                    console.error(err);
+                }
+            });
+        }
 
-            function renderUsageView(prompt) {
-                 promptModalTitle.textContent = `Utilizza: ${prompt.title}`;
-                 const usageContent = escapeHTML(prompt.content).replace(/{{(.*?)}}/g, (match, name) => 
-                    `<textarea class="usage-mode-placeholder form-control form-control-sm d-inline-block" rows="1" placeholder="${escapeHTML(name)}"></textarea>`
-                 );
-                 promptModalBody.innerHTML = `
+        function renderUsageView(prompt) {
+            promptModalTitle.textContent = `Utilizza: ${prompt.title}`;
+            const usageContent = escapeHTML(prompt.content).replace(/{{(.*?)}}/g, (match, name) =>
+                `<input type="text" class="usage-mode-placeholder form-control form-control-sm d-inline-block" placeholder="${escapeHTML(name)}">`
+            );
+            promptModalBody.innerHTML = `
                     <div id="prompt-content-usage">${usageContent}</div>
                     <div class="d-flex justify-content-end gap-2 mt-3">
                         <button class="btn btn-secondary" id="back-to-view-btn"><i class="bi bi-arrow-left me-1"></i> Indietro</button>
                         <button class="btn btn-success" id="copy-prompt-btn"><i class="bi bi-clipboard-check-fill me-1"></i> Copia</button>
                     </div>
                  `;
-                 promptModalBody.querySelectorAll('.usage-mode-placeholder').forEach(ta => {
-                    ta.addEventListener('input', () => { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; });
-                 });
-                 promptModalBody.querySelector('#back-to-view-btn').addEventListener('click', () => renderPromptDisplayView(prompt));
-                 promptModalBody.querySelector('#copy-prompt-btn').addEventListener('click', () => {
-                    let i = 0;
-                    const final = prompt.content.replace(/{{(.*?)}}/g, () => document.querySelectorAll('.usage-mode-placeholder')[i++].value);
-                    navigator.clipboard.writeText(final).then(() => showToast('Copiato!', 'success')).catch(() => showToast('Copia fallita', 'danger'));
-                 });
-            }
+            promptModalBody.querySelector('#back-to-view-btn').addEventListener('click', () => renderPromptDisplayView(prompt));
+            promptModalBody.querySelector('#copy-prompt-btn').addEventListener('click', () => {
+                let i = 0;
+                const final = prompt.content.replace(/{{(.*?)}}/g, () => document.querySelectorAll('.usage-mode-placeholder')[i++].value);
+                navigator.clipboard.writeText(final).then(() => showToast('Copiato!', 'success')).catch(() => showToast('Copia fallita', 'danger'));
+            });
+        }
 
-            async function handleFolderSelect(folderId) {
-                state.currentFolderId = folderId;
-                document.querySelectorAll('#folder-tree .folder-item').forEach(el => el.classList.remove('active'));
-                
-                const selector = folderId === null ? `[data-folder-id="null"]` : `[data-folder-id="${folderId}"]`;
-                document.querySelector(`#folder-tree .folder-item${selector}`)?.classList.add('active');
-                
-                const folder = folderId === null ? null : state.allFolders.get(folderId);
-                currentFolderNameEl.textContent = folder ? folder.name : 'Radice';
-                await renderPromptList(folderId, searchInput.value);
-            }
-            
-            async function handlePromptSelect(promptId) {
-                try {
-                    const prompt = await promptRepo.get(promptId);
-                    if (prompt) {
-                        renderPromptDisplayView(prompt);
-                        promptDetailModal.show();
-                    } else {
-                        showToast('Prompt non trovato.', 'danger');
-                    }
-                } catch(e) {
-                     showToast('Errore nel caricamento del prompt.', 'danger');
+        async function handleFolderSelect(folderId) {
+            state.currentFolderId = folderId;
+            document.querySelectorAll('#folder-tree .folder-item').forEach(el => el.classList.remove('active'));
+
+            const selector = folderId === null ? `[data-folder-id="null"]` : `[data-folder-id="${folderId}"]`;
+            document.querySelector(`#folder-tree .folder-item${selector}`)?.classList.add('active');
+
+            const folder = folderId === null ? null : state.allFolders.get(folderId);
+            currentFolderNameEl.textContent = folder ? folder.name : 'Tutti i prompt';
+            await renderPromptList(folderId, searchInput.value);
+        }
+
+        async function handlePromptSelect(promptId) {
+            try {
+                const prompt = state.readOnly
+                    ? state.readOnlyData.prompts.find(p => p.id === promptId)
+                    : await promptRepo.get(promptId);
+
+                if (prompt) {
+                    renderPromptDisplayView(prompt);
+                    promptDetailModal.show();
+                } else {
+                    showToast('Prompt non trovato.', 'danger');
                 }
+            } catch(e) {
+                showToast('Errore nel caricamento del prompt.', 'danger');
+            }
+        }
+
+        async function handleExport() {
+            try {
+                const folders = await folderRepo.getAll();
+                const prompts = await dbOps.getAllFromStore(PROMPTS_STORE);
+                const data = {
+                    folders,
+                    prompts
+                };
+                const jsonString = JSON.stringify(data, null, 2);
+                const blob = new Blob([jsonString], {type: 'application/json'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `prompt-library-backup-${new Date().toISOString().slice(0,10)}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showToast('Esportazione completata!', 'success');
+            } catch(err) {
+                showToast('Errore durante l\'esportazione.', 'danger');
+                console.error(err);
+            }
+        }
+
+        async function handleImport(file) {
+            if (!file) return;
+            if (!confirm('Sei sicuro? L\'importazione cancellerà tutti i dati attuali e li sostituirà con quelli del file. Questa azione è irreversibile.')) {
+                return;
             }
 
-            async function handleExport() {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
                 try {
-                    const folders = await folderRepo.getAll();
-                    const prompts = await dbOps.getAllFromStore(PROMPTS_STORE);
-                    const data = {
-                        folders,
-                        prompts
-                    };
-                    const jsonString = JSON.stringify(data, null, 2);
-                    const blob = new Blob([jsonString], {type: 'application/json'});
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `prompt-library-backup-${new Date().toISOString().slice(0,10)}.json`;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-                    showToast('Esportazione completata!', 'success');
-                } catch(err) {
-                    showToast('Errore durante l\'esportazione.', 'danger');
+                    const data = JSON.parse(e.target.result);
+                    if (!data.folders || !data.prompts) {
+                        throw new Error('File JSON non valido.');
+                    }
+
+                    // Clear existing data
+                    await dbOps.clearStore(PROMPTS_STORE);
+                    await dbOps.clearStore(FOLDERS_STORE);
+
+                    // Use put to preserve IDs if they exist in the JSON
+                    const txFolders = db.transaction(FOLDERS_STORE, 'readwrite');
+                    for (const folder of data.folders) {
+                        txFolders.objectStore(FOLDERS_STORE).put(folder);
+                    }
+                    await new Promise(r => txFolders.oncomplete = r);
+
+                    const txPrompts = db.transaction(PROMPTS_STORE, 'readwrite');
+                    for (const prompt of data.prompts) {
+                        txPrompts.objectStore(PROMPTS_STORE).put(prompt);
+                    }
+                    await new Promise(r => txPrompts.oncomplete = r);
+
+                    showToast('Importazione completata con successo!', 'success');
+                    await initializeApp();
+
+                } catch (err) {
+                    showToast('Errore durante l\'importazione. Assicurati che il file JSON sia valido.', 'danger');
                     console.error(err);
                 }
-            }
+            };
+            reader.readAsText(file);
+        }
 
-            async function handleImport(file) {
-                if (!file) return;
-                if (!confirm('Sei sicuro? L\'importazione cancellerà tutti i dati attuali e li sostituirà con quelli del file. Questa azione è irreversibile.')) {
-                    return;
-                }
+        function attachEventListeners() {
+            // Listeners for navigating and viewing (safe for both modes)
+            searchInput.addEventListener('input', () => renderPromptList(state.currentFolderId, searchInput.value));
 
-                const reader = new FileReader();
-                reader.onload = async (e) => {
-                    try {
-                        const data = JSON.parse(e.target.result);
-                        if (!data.folders || !data.prompts) {
-                            throw new Error('File JSON non valido.');
-                        }
+            // Listeners for modifying data (only for normal mode)
+            if (!state.readOnly) {
+                const importFileInput = document.getElementById('import-file-input');
 
-                        // Clear existing data
-                        await dbOps.clearStore(PROMPTS_STORE);
-                        await dbOps.clearStore(FOLDERS_STORE);
-
-                        // Import new data, preserving IDs
-                        for (const folder of data.folders) {
-                            await dbOps.put(FOLDERS_STORE, folder);
-                        }
-                        for (const prompt of data.prompts) {
-                            await dbOps.put(PROMPTS_STORE, prompt);
-                        }
-                        
-                        showToast('Importazione completata con successo!', 'success');
-                        await initializeApp();
-
-                    } catch (err) {
-                        showToast('Errore durante l\'importazione. Assicurati che il file JSON sia valido.', 'danger');
-                        console.error(err);
-                    }
-                };
-                reader.readAsText(file);
-            }
-
-            function attachEventListeners() {
                 document.getElementById('add-folder-btn').addEventListener('click', () => {
                     document.getElementById('folder-form').reset();
                     const parentId = state.currentFolderId;
                     const parentFolder = parentId ? state.allFolders.get(parentId) : null;
-
-                    if (parentFolder) {
-                        document.getElementById('folder-modal-title').textContent = `Nuova cartella in "${escapeHTML(parentFolder.name)}"`;
-                        document.getElementById('parent-folder-id-input').value = parentId;
-                    } else {
-                        document.getElementById('folder-modal-title').textContent = 'Nuova Cartella Radice';
-                        document.getElementById('parent-folder-id-input').value = 'null';
-                    }
+                    document.getElementById('folder-modal-title').textContent = parentFolder ? `Nuova cartella in "${escapeHTML(parentFolder.name)}"` : 'Nuova Cartella Principale';
+                    document.getElementById('parent-folder-id-input').value = parentId === null ? 'null' : parentId;
                     folderModal.show();
                 });
 
@@ -825,7 +902,7 @@
                         }
                     }
                 });
-                
+
                 folderTreeEl.addEventListener('click', async (e) => {
                     const delBtn = e.target.closest('.delete-folder-btn');
                     if (delBtn) {
@@ -835,8 +912,10 @@
                             showToast('Cartella eliminata.', 'success');
                             if (state.currentFolderId === folderId) {
                                 await handleFolderSelect(null);
+                            } else {
+                                await renderFolderTree(); // Re-render tree for count updates
+                                await renderPromptList(state.currentFolderId); // Re-render list if a child was deleted
                             }
-                            await renderFolderTree();
                         }
                     }
                 });
@@ -846,29 +925,71 @@
                     promptDetailModal.show();
                 });
 
-                searchInput.addEventListener('input', () => renderPromptList(state.currentFolderId, searchInput.value));
-
-                // Import/Export Listeners
-                const importFileInput = document.getElementById('import-file-input');
                 document.getElementById('import-btn').addEventListener('click', () => importFileInput.click());
                 importFileInput.addEventListener('change', (e) => handleImport(e.target.files[0]));
                 document.getElementById('export-btn').addEventListener('click', handleExport);
             }
+        }
 
-            async function initializeApp() {
-                try {
-                    await dbOps.initDB();
-                    await renderFolderTree();
-                    await handleFolderSelect(null);
-                    attachEventListeners();
-                } catch (error) {
-                    console.error("Initialization failed:", error);
-                    showToast("Errore di inizializzazione.", 'danger');
+        async function initializeNormalMode() {
+            await dbOps.initDB();
+            await renderFolderTree();
+            await handleFolderSelect(null);
+            attachEventListeners();
+        }
+
+        async function initializeReadOnlyMode(url) {
+            try {
+                showToast('Caricamento modalità sola lettura...', 'info');
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+                const data = await response.json();
+                if (!data.folders || !data.prompts) throw new Error('File JSON non valido.');
+
+                state.readOnly = true;
+                state.readOnlyData = data;
+
+                document.getElementById('add-prompt-btn').style.display = 'none';
+                document.getElementById('add-folder-btn').style.display = 'none';
+                document.getElementById('sidebar-footer').style.display = 'none';
+
+                if(data.logo_url) {
+                    const titleContainer = document.getElementById('sidebar-title-container');
+                    titleContainer.innerHTML = `<img src="${data.logo_url}" alt="Logo" class="sidebar-logo">`;
                 }
+
+                await renderFolderTree();
+                await handleFolderSelect(null);
+                attachEventListeners(); // Only safe listeners will have an effect
+                showToast('Modalità sola lettura attiva.', 'success');
+
+            } catch (error) {
+                console.error("Read-only initialization failed:", error);
+                showToast(`Errore caricamento. Avvio in modalità normale.`, 'danger');
+                await initializeNormalMode();
             }
-            initializeApp();
-        });
-    </script>
+        }
+
+        async function initializeApp() {
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                const sourceUrl = urlParams.get('source');
+                if (sourceUrl) {
+                    await initializeReadOnlyMode(sourceUrl);
+                } else {
+                    await initializeNormalMode();
+                }
+            } catch (error) {
+                console.error("Initialization failed:", error);
+                showToast("Errore di inizializzazione.", 'danger');
+            }
+        }
+        initializeApp();
+    });
+</script>
 
 </body>
 </html>
+```
+```eof
